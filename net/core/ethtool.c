@@ -367,6 +367,20 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_settings(dev, &cmd);
 }
 
+static int ethtool_set_quota(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_test edata;
+
+	if (!dev->ethtool_ops->set_quota)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_quota(dev, edata.flags, edata.reserved);
+}
+
+
 static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 						  void __user *useraddr)
 {
@@ -1578,6 +1592,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_PHYS_ID:
 		rc = ethtool_phys_id(dev, useraddr);
+		break;
+	case ETHTOOL_SETQUOTA:
+		rc = ethtool_set_quota(dev, useraddr);
 		break;
 	case ETHTOOL_GSTATS:
 		rc = ethtool_get_stats(dev, useraddr);

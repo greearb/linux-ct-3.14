@@ -169,6 +169,11 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  * 		   and flag of the device.
  * @get_dump_data: Get dump data.
  * @set_dump: Set dump specific flags to the device.
+ * @set_quota:  Set veth quota (takes ethtool_test).
+ *        edata.flags is global: -1 no change, 0 disable, 1 enable
+ *        edata.reserved is new quota for this device.  quota is only
+ *        set if global option is -1.
+ *
  * @get_ts_info: Get the time stamping and PTP hardware clock capabilities.
  *	Drivers supporting transmit time stamps in software should set this to
  *	ethtool_op_get_ts_info().
@@ -217,6 +222,8 @@ struct ethtool_ops {
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
 	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
+	int      (*set_quota)(struct net_device *, int global_quota_enable,
+			      int new_quota);
 	void	(*get_ethtool_stats)(struct net_device *,
 				     struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);

@@ -25,6 +25,8 @@
 #define MIN_MTU 68		/* Min L3 MTU */
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
 
+static int do_quotas = 1; /* global enable/disable for quota logic */
+
 struct pcpu_vstats {
 	u64			packets;
 	u64			bytes;
@@ -34,16 +36,21 @@ struct pcpu_vstats {
 struct veth_priv {
 	struct net_device __rcu	*peer;
 	atomic64_t		dropped;
+	int quota;
 };
 
 /*
  * ethtool interface
  */
 
+static int veth_ethtool_set_quota(struct net_device* dev, int do_quotas_globally, int quota);
+
+
 static struct {
 	const char string[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
 	{ "peer_ifindex" },
+	{ "quota" },
 };
 
 static int veth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -93,6 +100,7 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	struct net_device *peer = rtnl_dereference(priv->peer);
 
 	data[0] = peer ? peer->ifindex : 0;
+	data[1] = priv->quota;
 }
 
 static const struct ethtool_ops veth_ethtool_ops = {
@@ -102,6 +110,7 @@ static const struct ethtool_ops veth_ethtool_ops = {
 	.get_strings		= veth_get_strings,
 	.get_sset_count		= veth_get_sset_count,
 	.get_ethtool_stats	= veth_get_ethtool_stats,
+	.set_quota		= veth_ethtool_set_quota,
 };
 
 static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -130,6 +139,20 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 		stats->bytes += length;
 		stats->packets++;
 		u64_stats_update_end(&stats->syncp);
+
+		/* -1 means ignore, and -2 means ignore sets as well.  This (2) is to
+		 * disable logic that uses this code w/out the calling code knowing
+		 * Used for debugging.
+		 */
+		if (unlikely(do_quotas && (priv->quota != 0xFFFFFFFF))) {
+			if (priv->quota > 0) {
+				priv->quota--;
+			}
+			if (priv->quota == 0) {
+				// Stop the tx-queue
+				netif_stop_queue(dev);
+			}
+		}
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
@@ -236,6 +259,7 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 static int veth_dev_init(struct net_device *dev)
 {
 	int i;
+	struct veth_priv *priv = netdev_priv(dev);
 
 	dev->vstats = alloc_percpu(struct pcpu_vstats);
 	if (!dev->vstats)
@@ -247,8 +271,61 @@ static int veth_dev_init(struct net_device *dev)
 		u64_stats_init(&veth_stats->syncp);
 	}
 
+	priv->quota = 0xFFFFFFFF; /* disable quota by default */
 	return 0;
 }
+
+
+static int veth_ethtool_set_quota(struct net_device* dev, int do_quotas_globally, int quota) {
+	struct veth_priv *priv = netdev_priv(dev);
+
+	if (do_quotas_globally == -1) {
+		priv->quota = quota;
+		if (priv->quota != 0) {
+			netif_wake_queue(dev);
+		}
+	}
+	else {
+		do_quotas = do_quotas_globally;
+	}
+	return 0;
+}
+
+
+int veth_set_quota(int ifidx, int quota) {
+	struct veth_priv *priv;
+	struct net_device* dev;
+	int err = 0;
+
+	/* See if we should twiddle the global quota flag */
+	if (ifidx == -1) {
+		do_quotas = quota;
+		return 0;
+	}
+
+	// Get device by idx;
+	dev = dev_get_by_index(&init_net, ifidx);
+	if (dev) {
+		// Make sure this is a VETH device.
+		if (dev->netdev_ops && dev->netdev_ops->ndo_start_xmit == veth_xmit) {
+			priv = netdev_priv(dev);
+			priv->quota = quota;
+			if (priv->quota != 0) {
+				netif_wake_queue(dev);
+			}
+		}
+		else {
+			err = -EINVAL;
+		}
+		dev_put(dev);
+	}
+	else {
+		err = -ENODEV;
+	}
+	return err;
+}
+EXPORT_SYMBOL(veth_set_quota);
+
 
 static void veth_dev_free(struct net_device *dev)
 {
