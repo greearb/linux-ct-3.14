@@ -842,6 +842,14 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 		NEIGH_VAR(p, MCAST_PROBES);
 }
 
+static unsigned long neigh_rand_retry(struct neighbour* neigh) {
+	int b = NEIGH_VAR(neigh->parms, RETRANS_RAND_BACKOFF);
+	if (b) {
+		return prandom_u32() % b;
+	}
+	return 0;
+}
+
 static void neigh_invalidate(struct neighbour *neigh)
 	__releases(neigh->lock)
 	__acquires(neigh->lock)
@@ -933,11 +941,13 @@ static void neigh_timer_handler(unsigned long arg)
 			neigh->nud_state = NUD_PROBE;
 			neigh->updated = jiffies;
 			atomic_set(&neigh->probes, 0);
-			next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME);
+			next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME)
+				+ neigh_rand_retry(neigh);
 		}
 	} else {
 		/* NUD_PROBE|NUD_INCOMPLETE */
-		next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME);
+		next = now + NEIGH_VAR(neigh->parms, RETRANS_TIME)
+			+ neigh_rand_retry(neigh);
 	}
 
 	if ((neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) &&
@@ -2999,6 +3009,12 @@ static struct neigh_sysctl_table {
 		NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(QUEUE_LEN, QUEUE_LEN_BYTES, "unres_qlen"),
 		NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(RETRANS_TIME_MS, RETRANS_TIME, "retrans_time_ms"),
 		NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(BASE_REACHABLE_TIME_MS, BASE_REACHABLE_TIME, "base_reachable_time_ms"),
+		[NEIGH_VAR_RETRANS_RAND_BACKOFF] = {
+			.procname	= "retrans_rand_backoff_ms",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= &proc_dointvec_ms_jiffies,
+		},
 		[NEIGH_VAR_GC_INTERVAL] = {
 			.procname	= "gc_interval",
 			.maxlen		= sizeof(int),
@@ -3072,6 +3088,8 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler = handler;
 		/* RetransTime (in milliseconds)*/
 		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].proc_handler = handler;
+		/* RetransRandBackoffTime (in milliseconds)*/
+		t->neigh_vars[NEIGH_VAR_RETRANS_RAND_BACKOFF].proc_handler = handler;
 		/* ReachableTime (in milliseconds) */
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
 	}
