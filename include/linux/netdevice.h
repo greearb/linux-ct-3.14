@@ -198,6 +198,7 @@ extern struct static_key rps_needed;
 struct neighbour;
 struct neigh_parms;
 struct sk_buff;
+struct pktgen_dev;
 
 struct netdev_hw_addr {
 	struct list_head	list;
@@ -1438,6 +1439,14 @@ struct net_device {
 	/* MRP */
 	struct mrp_port __rcu	*mrp_port;
 
+	 /* Callback for when the queue is woken, used by pktgen currently */
+	int                     (*notify_queue_woken)(struct net_device *dev);
+	void* nqw_data; /* To be used by the method above as needed */
+
+	struct pktgen_dev* pkt_dev; /* to quickly find the pkt-gen dev registered with this
+				     * interface, if any.
+				     */
+
 	/* class/net/name entry */
 	struct device		dev;
 	/* space for optional device, statistics, and wireless sysfs groups */
@@ -2052,8 +2061,11 @@ void __netif_schedule(struct Qdisc *q);
 
 static inline void netif_schedule_queue(struct netdev_queue *txq)
 {
-	if (!(txq->state & QUEUE_STATE_ANY_XOFF))
+	if (!(txq->state & QUEUE_STATE_ANY_XOFF)) {
 		__netif_schedule(txq->qdisc);
+		if (txq->dev->notify_queue_woken)
+			txq->dev->notify_queue_woken(txq->dev);
+	}
 }
 
 static inline void netif_tx_schedule_all(struct net_device *dev)
@@ -2098,8 +2110,11 @@ static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 		return;
 	}
 #endif
-	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state))
+	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state)) {
 		__netif_schedule(dev_queue->qdisc);
+		if (dev_queue->dev->notify_queue_woken)
+			dev_queue->dev->notify_queue_woken(dev_queue->dev);
+	}
 }
 
 /**
@@ -2383,8 +2398,11 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 	if (netpoll_trap())
 		return;
 #endif
-	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &txq->state))
+	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &txq->state)) {
 		__netif_schedule(txq->qdisc);
+		if (dev->notify_queue_woken)
+			dev->notify_queue_woken(dev);
+	}
 }
 
 #ifdef CONFIG_XPS
