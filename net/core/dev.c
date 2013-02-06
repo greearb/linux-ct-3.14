@@ -3439,6 +3439,10 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
+		if (*ret == NET_RX_CONSUMED) {
+			kfree_skb(skb); /* we made a copy in deliver_skb */
+			return NULL;
+		}
 	}
 
 	switch (ing_filter(skb, rxq)) {
@@ -3578,8 +3582,13 @@ another_round:
 
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
 		if (!ptype->dev || ptype->dev == skb->dev) {
-			if (pt_prev)
+			if (pt_prev) {
 				ret = deliver_skb(skb, pt_prev, orig_dev);
+				if (ret == NET_RX_CONSUMED) {
+					kfree_skb(skb); /* we made a copy in deliver_skb */
+					goto unlock;
+				}
+			}
 			pt_prev = ptype;
 		}
 	}
@@ -3646,8 +3655,13 @@ ncls:
 		if (ptype->type == type &&
 		    (ptype->dev == null_or_dev || ptype->dev == skb->dev ||
 		     ptype->dev == orig_dev)) {
-			if (pt_prev)
+			if (pt_prev) {
 				ret = deliver_skb(skb, pt_prev, orig_dev);
+				if (ret == NET_RX_CONSUMED) {
+					kfree_skb(skb); /* we made a copy in deliver_skb */
+					goto unlock;
+				}
+			}
 			pt_prev = ptype;
 		}
 	}
