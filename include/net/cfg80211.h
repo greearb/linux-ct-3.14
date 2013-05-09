@@ -1367,6 +1367,8 @@ struct cfg80211_ssid {
  * @aborted: (internal) scan request was notified as aborted
  * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
+ * @can_scan_one:  If true, only scan active channel if at least one
+ *       vif is already associated.
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -1386,6 +1388,7 @@ struct cfg80211_scan_request {
 	unsigned long scan_start;
 	bool aborted, notified;
 	bool no_cck;
+	bool can_scan_one;
 
 	/* keep last */
 	struct ieee80211_channel *channels[0];
