@@ -57,6 +57,118 @@
 
 #define IEEE80211_SCAN_RESULT_EXPIRE	(30 * HZ)
 
+#ifdef CONFIG_CFG80211_DEBUGFS
+/* memory debugging structures, only useful when debugfs
+ * is enabled.
+ */
+LIST_HEAD(ies_list);
+DEFINE_SPINLOCK(ies_lock);
+atomic_t ies_count = ATOMIC_INIT(0);
+
+LIST_HEAD(bss_list);
+DEFINE_SPINLOCK(bss_lock);
+atomic_t bss_count = ATOMIC_INIT(0);
+
+
+static void my_kfree_rcu_ies(struct cfg80211_bss_ies *ies)
+{
+	if (cfg80211_mem_debugging) {
+		struct wifi_mem_tracker *iesm;
+		spin_lock_bh(&ies_lock);
+		list_for_each_entry(iesm, &ies_list, mylist) {
+			if (iesm->ptr == ies) {
+				list_del(&iesm->mylist);
+				kfree(iesm);
+				break;
+			}
+		}
+		spin_unlock_bh(&ies_lock);
+	}
+	atomic_sub(1, &ies_count);
+	kfree_rcu(ies, rcu_head);
+}
+
+#define my_kmalloc_ies(s, g)				\
+	_my_kmalloc_ies(s, g, __LINE__);
+
+static void* _my_kmalloc_ies(size_t s, gfp_t gfp, int l)
+{
+	void *rv = kmalloc(s, gfp);
+	if (rv) {
+		atomic_add(1, &ies_count);
+		if (cfg80211_mem_debugging) {
+			struct wifi_mem_tracker *iesm;
+			iesm = kmalloc(sizeof(*iesm), gfp);
+			if (iesm) {
+				snprintf(iesm->buf, sizeof(iesm->buf), "%i", l);
+				iesm->buf[sizeof(iesm->buf)-1] = 0;
+				iesm->ptr = rv;
+				INIT_LIST_HEAD(&iesm->mylist);
+				spin_lock_bh(&ies_lock);
+				list_add(&iesm->mylist, &ies_list);
+				spin_unlock_bh(&ies_lock);
+			} else {
+				pr_err("ERROR:  Could not allocate iesm.\n");
+			}
+		}
+	}
+	return rv;
+}
+
+static void my_kfree_bss(struct cfg80211_internal_bss *bss)
+{
+	if (cfg80211_mem_debugging) {
+		struct wifi_mem_tracker *bssm;
+		spin_lock_bh(&bss_lock);
+		list_for_each_entry(bssm, &bss_list, mylist) {
+			if (bssm->ptr == bss) {
+				list_del(&bssm->mylist);
+				kfree(bssm);
+				break;
+			}
+		}
+		spin_unlock_bh(&bss_lock);
+	}
+	atomic_sub(1, &bss_count);
+	kfree(bss);
+}
+
+#define my_kzalloc_bss(s, g)				\
+	_my_kzalloc_bss(s, g, __LINE__);
+
+static void* _my_kzalloc_bss(size_t s, gfp_t gfp, int l)
+{
+	void *rv = kmalloc(s, gfp);
+	if (rv) {
+		atomic_add(1, &bss_count);
+		if (cfg80211_mem_debugging) {
+			struct wifi_mem_tracker *bssm;
+			bssm = kmalloc(sizeof(*bssm), gfp);
+			if (bssm) {
+				snprintf(bssm->buf, sizeof(bssm->buf), "%i", l);
+				bssm->buf[sizeof(bssm->buf)-1] = 0;
+				bssm->ptr = rv;
+				INIT_LIST_HEAD(&bssm->mylist);
+				spin_lock_bh(&bss_lock);
+				list_add(&bssm->mylist, &bss_list);
+				spin_unlock_bh(&bss_lock);
+			} else {
+				pr_err("ERROR:  Could not allocate bssm for bss.\n");
+			}
+		}
+	}
+	return rv;
+}
+
+#else
+
+#define my_kfree_rcu_ies(ies) kfree_rcu(ies, rcu_head)
+#define my_kmalloc_ies(s, g) kmalloc(s, g)
+#define my_kfree_bss(a) kfree(a)
+#define my_kzalloc_bss(s, g) kzalloc(s, g)
+
+#endif
+
 static void bss_free(struct cfg80211_internal_bss *bss)
 {
 	struct cfg80211_bss_ies *ies;
@@ -66,10 +178,10 @@ static void bss_free(struct cfg80211_internal_bss *bss)
 
 	ies = (void *)rcu_access_pointer(bss->pub.beacon_ies);
 	if (ies && !bss->pub.hidden_beacon_bss)
-		kfree_rcu(ies, rcu_head);
+		my_kfree_rcu_ies(ies);
 	ies = (void *)rcu_access_pointer(bss->pub.proberesp_ies);
 	if (ies)
-		kfree_rcu(ies, rcu_head);
+		my_kfree_rcu_ies(ies);
 
 	/*
 	 * This happens when the module is removed, it doesn't
@@ -78,7 +190,7 @@ static void bss_free(struct cfg80211_internal_bss *bss)
 	if (!list_empty(&bss->hidden_list))
 		list_del(&bss->hidden_list);
 
-	kfree(bss);
+	my_kfree_bss(bss);
 }
 
 static inline void bss_ref_get(struct cfg80211_registered_device *dev,
@@ -719,8 +831,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 			rcu_assign_pointer(found->pub.ies,
 					   tmp->pub.proberesp_ies);
 			if (old)
-				kfree_rcu((struct cfg80211_bss_ies *)old,
-					  rcu_head);
+				my_kfree_rcu_ies((struct cfg80211_bss_ies *)old);
 		} else if (rcu_access_pointer(tmp->pub.beacon_ies)) {
 			const struct cfg80211_bss_ies *old;
 			struct cfg80211_internal_bss *bss;
@@ -740,8 +851,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 				 */
 
 				f = rcu_access_pointer(tmp->pub.beacon_ies);
-				kfree_rcu((struct cfg80211_bss_ies *)f,
-					  rcu_head);
+				my_kfree_rcu_ies((struct cfg80211_bss_ies *)f);
 				goto drop;
 			}
 
@@ -768,8 +878,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 			}
 
 			if (old)
-				kfree_rcu((struct cfg80211_bss_ies *)old,
-					  rcu_head);
+				my_kfree_rcu_ies((struct cfg80211_bss_ies *)old);
 		}
 
 		found->pub.beacon_interval = tmp->pub.beacon_interval;
@@ -786,15 +895,15 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		 * is allocated on the stack since it's not needed in the
 		 * more common case of an update
 		 */
-		new = kzalloc(sizeof(*new) + dev->wiphy.bss_priv_size,
-			      GFP_ATOMIC);
+		new = my_kzalloc_bss(sizeof(*new) + dev->wiphy.bss_priv_size,
+				     GFP_ATOMIC);
 		if (!new) {
 			ies = (void *)rcu_dereference(tmp->pub.beacon_ies);
 			if (ies)
-				kfree_rcu(ies, rcu_head);
+				my_kfree_rcu_ies(ies);
 			ies = (void *)rcu_dereference(tmp->pub.proberesp_ies);
 			if (ies)
-				kfree_rcu(ies, rcu_head);
+				my_kfree_rcu_ies(ies);
 			goto drop;
 		}
 		memcpy(new, tmp, sizeof(*new));
@@ -911,7 +1020,7 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	 * override the IEs pointer should we have received an earlier
 	 * indication of Probe Response data.
 	 */
-	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	ies = my_kmalloc_ies(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
@@ -971,7 +1080,7 @@ cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 	if (!channel)
 		return NULL;
 
-	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	ies = my_kmalloc_ies(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
 	ies->len = ielen;

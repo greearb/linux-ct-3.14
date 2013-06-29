@@ -115,6 +115,22 @@ extern struct workqueue_struct *cfg80211_wq;
 extern struct list_head cfg80211_rdev_list;
 extern int cfg80211_rdev_list_generation;
 
+extern bool cfg80211_mem_debugging; /* module option */
+#ifdef CONFIG_CFG80211_DEBUGFS
+struct wifi_mem_tracker {
+	struct list_head mylist;
+	char buf[40];
+	void *ptr;
+};
+extern struct list_head ies_list;
+extern spinlock_t ies_lock;
+extern atomic_t ies_count;
+
+extern struct list_head bss_list;
+extern spinlock_t bss_lock;
+extern atomic_t bss_count;
+#endif
+
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;

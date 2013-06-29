@@ -50,6 +50,10 @@ static bool cfg80211_disable_40mhz_24ghz;
 module_param(cfg80211_disable_40mhz_24ghz, bool, 0644);
 MODULE_PARM_DESC(cfg80211_disable_40mhz_24ghz,
 		 "Disable 40MHz support in the 2.4GHz band");
+bool cfg80211_mem_debugging;
+module_param(cfg80211_mem_debugging, bool, 0644);
+MODULE_PARM_DESC(cfg80211_mem_debugging,
+		 "Enable memory tracking for ies and bss objects.");
 
 struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 {
@@ -1009,6 +1013,7 @@ static int __init cfg80211_init(void)
 		goto out_fail_nl80211;
 
 	ieee80211_debugfs_dir = debugfs_create_dir("ieee80211", NULL);
+	ieee80211_debugfs_add_glbl(ieee80211_debugfs_dir);
 
 	err = regulatory_init();
 	if (err)
@@ -1025,7 +1030,7 @@ static int __init cfg80211_init(void)
 out_fail_wq:
 	regulatory_exit();
 out_fail_reg:
-	debugfs_remove(ieee80211_debugfs_dir);
+	debugfs_remove_recursive(ieee80211_debugfs_dir);
 out_fail_nl80211:
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 out_fail_notifier:
@@ -1039,7 +1044,7 @@ subsys_initcall(cfg80211_init);
 
 static void __exit cfg80211_exit(void)
 {
-	debugfs_remove(ieee80211_debugfs_dir);
+	debugfs_remove_recursive(ieee80211_debugfs_dir);
 	nl80211_exit();
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 	wiphy_sysfs_exit();
