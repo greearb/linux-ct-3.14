@@ -543,7 +543,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		 */
 		if ((running_other_vifs > 0) ||
 		    (associated_station_vifs > 1)) {
-			local->scan_req->channels[0] = local->hw.conf.channel;
+			local->scan_req->channels[0] = local->_oper_chandef.chan;
 			local->scan_req->n_channels = 1;
 			printk(KERN_ERR "%s: start_sw_scan: running-other-vifs: %i  "
 			       "running-station-vifs: %i, associated-stations: %i"
@@ -551,7 +551,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 			       wiphy_name(local->hw.wiphy),
 			       running_other_vifs, running_station_vifs,
 			       associated_station_vifs,
-			       local->hw.conf.channel->center_freq);
+			       local->_oper_chandef.chan->center_freq);
 		} else
 			printk(KERN_ERR "%s: start_sw_scan: running-other-vifs: %i  "
 			       "running-station-vifs: %i, associated-stations: %i"
