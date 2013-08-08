@@ -160,6 +160,7 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 		return;
 
 	if (--txq->pending_frames < 0) {
+		struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 		if (net_ratelimit())
 			ath_err(common, "txq: %p had negative pending_frames, q: %i\n",
 				txq, q);
