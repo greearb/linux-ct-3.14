@@ -110,4 +110,28 @@ static inline void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 {
 }
 #endif /* CONFIG_ATH10K_DEBUG */
+
+
+/* Target debug log related defines and structs */
+
+/* Target is 32-bit CPU, so we just use u32 for
+ * the pointers.  The memory space is relative to the
+ * target, not the host.
+ */
+struct dbglog_buf_s {
+	u32 next; /* pointer to dblog_buf_s. */
+	u32 buffer; /* pointer to u8 buffer */
+	u32 bufsize;
+	u32 length;
+	u32 count;
+	u32 free;
+} __packed;
+
+struct dbglog_hdr_s {
+	u32 dbuf; /* pointer to dbglog_buf_s */
+	u32 dropped;
+} __packed;
+
+void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len);
+
 #endif /* _DEBUG_H_ */

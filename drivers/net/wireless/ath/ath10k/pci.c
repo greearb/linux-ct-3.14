@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/bitops.h>
+#include <linux/ctype.h>
 
 #include "core.h"
 #include "debug.h"
@@ -830,6 +830,8 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 	u32 host_addr;
 	int ret;
 	u32 i;
+	struct dbglog_hdr_s dbg_hdr;
+	u32 dbufp; /* pointer in target memory space */
 
 	ath10k_err("firmware crashed!\n");
 	ath10k_err("hardware name %s version 0x%x\n",
@@ -865,6 +867,76 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 			   reg_dump_values[i + 2],
 			   reg_dump_values[i + 3]);
 
+	/* Dump the debug logs on the target */
+	host_addr = host_interest_item_address(HI_ITEM(hi_dbglog_hdr));
+	if (ath10k_pci_diag_read_mem(ar, host_addr,
+				     &reg_dump_area, sizeof(u32)) != 0) {
+		ath10k_warn("could not read hi_dbglog_hdr\n");
+		goto do_restart;
+	}
+
+	ath10k_err("target register Debug Log Location: 0x%08X\n",
+		   reg_dump_area);
+
+	ret = ath10k_pci_diag_read_mem(ar, reg_dump_area,
+				       &dbg_hdr, sizeof(dbg_hdr));
+	if (ret != 0) {
+		ath10k_err("could not dump Debug Log Area\n");
+		goto do_restart;
+	}
+
+	ath10k_err("Debug Log Header, dbuf: 0x%x  dropped: %i\n",
+		   dbg_hdr.dbuf, dbg_hdr.dropped);
+	dbufp = dbg_hdr.dbuf;
+	i = 0;
+	while (dbufp) {
+		struct dbglog_buf_s dbuf;
+		ret = ath10k_pci_diag_read_mem(ar, dbufp,
+					       &dbuf, sizeof(dbuf));
+		if (ret != 0) {
+			ath10k_err("could not read Debug Log Area: 0x%x\n",
+				   dbufp);
+			goto do_restart;
+		}
+
+		/* We have a buffer of data */
+		/* TODO:  Do we need to worry about bit order on some
+		 * architectures?  This seems to work fine with
+		 * x86-64 host, at least.
+		 */
+		ath10k_err("[%i] next: 0x%x buf: 0x%x sz: %i len: %i count: %i free: %i\n",
+			   i, dbuf.next, dbuf.buffer, dbuf.bufsize, dbuf.length,
+			   dbuf.count, dbuf.free);
+		if (dbuf.buffer && dbuf.length) {
+			u8 *buffer = kmalloc(dbuf.length, GFP_ATOMIC);
+
+			if (buffer) {
+				ret = ath10k_pci_diag_read_mem(ar, dbuf.buffer,
+							       buffer,
+							       dbuf.length);
+				if (ret != 0) {
+					ath10k_err("could not read Debug Log buffer: 0x%x\n",
+						   dbuf.buffer);
+					kfree(buffer);
+					goto do_restart;
+				}
+
+				ath10k_dbg_print_fw_dbg_buffer(buffer,
+							       dbuf.length);
+				kfree(buffer);
+			}
+		}
+		dbufp = dbuf.next;
+		if (dbufp == dbg_hdr.dbuf) {
+			/* It is a circular buffer it seems, bail if next
+			 * is is head
+			 */
+			break;
+		}
+		i++;
+	} /* While we have a debug buffer to read */
+
+do_restart:
 	queue_work(ar->workqueue, &ar->restart_work);
 }
 
