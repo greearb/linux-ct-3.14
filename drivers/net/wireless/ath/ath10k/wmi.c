@@ -1071,11 +1071,14 @@ static void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
 
 static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug mesg len %d\n",
-		   skb->len);
+	u32 *m = (u32 *)(skb->data);
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug mesg len %d  dropped: %i\n",
+		   skb->len, m[0]);
 
 	trace_ath10k_wmi_dbglog(skb->data, skb->len);
 
+	if (ath10k_debug_mask & ATH10K_DBG_FIRMWARE)
+		ath10k_dbg_print_fw_dbg_buffer((u8 *)(&(m[1])), skb->len - 4);
 	return 0;
 }
 
@@ -1766,7 +1769,7 @@ static void ath10k_wmi_event_debug_print(struct ath10k *ar,
 	/* the last byte is always reserved for the null character */
 	buf[i] = '\0';
 
-	ath10k_dbg(ATH10K_DBG_WMI, "wmi event debug print '%s'\n", buf);
+	ath10k_dbg(ATH10K_DBG_FIRMWARE, "wmi event debug print '%s'\n", buf);
 }
 
 static void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb)
