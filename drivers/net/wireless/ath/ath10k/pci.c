@@ -823,6 +823,54 @@ static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 	return ath10k_ce_num_free_src_entries(ar_pci->pipe_info[pipe].ce_hdl);
 }
 
+void ath10k_log_firmware_stack(struct ath10k *ar)
+{
+	/* Max size in firmware is 4k */
+#define A10K_FW_STACK_SIZE 4096
+	u32 host_addr;
+	u32 reg_dump_area;
+	int i;
+	int ret;
+	unsigned char *stack_buf = kmalloc(A10K_FW_STACK_SIZE, GFP_ATOMIC);
+	u32 *stack_bufi = (u32 *)(stack_buf);
+
+	if (!stack_buf)
+		goto done_stack;
+
+	BUILD_BUG_ON(A10K_FW_STACK_SIZE % 8);
+
+	host_addr = host_interest_item_address(HI_ITEM(hi_stack));
+	if (ath10k_pci_diag_read_mem(ar, host_addr, &reg_dump_area,
+				     sizeof(u32)) != 0) {
+		ath10k_warn("could not read hi_stack\n");
+		goto done_stack;
+	}
+
+	ret = ath10k_pci_diag_read_mem(ar, reg_dump_area,
+				       stack_buf, A10K_FW_STACK_SIZE);
+	if (ret != 0) {
+		ath10k_err("could not dump FW Stack Area\n");
+		goto done_stack;
+	}
+
+	ath10k_err("target Stack Dump: 0x%08x\n", reg_dump_area);
+	for (i = 0; i < A10K_FW_STACK_SIZE/4; i += 8)
+		ath10k_err("[%04d]: %08X %08X %08X %08X %08X %08X %08X %08X\n",
+			   i,
+			   stack_bufi[i],
+			   stack_bufi[i + 1],
+			   stack_bufi[i + 2],
+			   stack_bufi[i + 3],
+			   stack_bufi[i + 4],
+			   stack_bufi[i + 5],
+			   stack_bufi[i + 6],
+			   stack_bufi[i + 7]);
+
+done_stack:
+	kfree(stack_buf);
+}
+
+
 static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 {
 	u32 reg_dump_area = 0;
@@ -866,6 +914,8 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 			   reg_dump_values[i + 1],
 			   reg_dump_values[i + 2],
 			   reg_dump_values[i + 3]);
+
+	ath10k_log_firmware_stack(ar);
 
 	/* Dump the debug logs on the target */
 	host_addr = host_interest_item_address(HI_ITEM(hi_dbglog_hdr));
