@@ -3131,6 +3131,7 @@ enum nl80211_key_attributes {
  *	in an array of MCS numbers.
  * @NL80211_TXRATE_VHT: VHT rates allowed for TX rate selection,
  *	see &struct nl80211_txrate_vht
+ * @NL80211_TXRATE_GI: configure GI, see &enum nl80211_txrate_gi
  * @__NL80211_TXRATE_AFTER_LAST: internal
  * @NL80211_TXRATE_MAX: highest TX rate attribute
  */
@@ -3139,6 +3140,7 @@ enum nl80211_tx_rate_attributes {
 	NL80211_TXRATE_LEGACY,
 	NL80211_TXRATE_HT,
 	NL80211_TXRATE_VHT,
+	NL80211_TXRATE_GI,
 
 	/* keep last */
 	__NL80211_TXRATE_AFTER_LAST,
@@ -3154,6 +3156,12 @@ enum nl80211_tx_rate_attributes {
  */
 struct nl80211_txrate_vht {
 	__u16 mcs[NL80211_VHT_NSS_MAX];
+};
+
+enum nl80211_txrate_gi {
+	NL80211_TXRATE_DEFAULT_GI,
+	NL80211_TXRATE_FORCE_SGI,
+	NL80211_TXRATE_FORCE_LGI,
 };
 
 /**
