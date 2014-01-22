@@ -327,6 +327,9 @@ enum ath10k_fw_features {
 	/* Firmware does not support P2P */
 	ATH10K_FW_FEATURE_NO_P2P = 3,
 
+	/* Firmware from Candela Technologies, enables more VIFs, etc */
+	ATH10K_FW_FEATURE_WMI_10X_CT = 4,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -427,7 +430,7 @@ struct ath10k {
 	/* current operating channel definition */
 	struct cfg80211_chan_def chandef;
 
-	int free_vdev_map;
+	unsigned long long free_vdev_map;
 	int monitor_vdev_id;
 	bool monitor_enabled;
 	bool monitor_present;

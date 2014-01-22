@@ -1982,6 +1982,13 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
 	struct wmi_service_ready_event_10x *ev = (void *)skb->data;
+	int my_num_peers = TARGET_10X_NUM_PEERS;
+	int my_num_vdevs = TARGET_10X_NUM_VDEVS;
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features)) {
+		my_num_peers = TARGET_10X_NUM_PEERS_CT;
+		my_num_vdevs = TARGET_10X_NUM_VDEVS_CT;
+	}
 
 	if (skb->len < sizeof(*ev)) {
 		ath10k_warn("Service ready event was %d B but expected %zu B. Wrong firmware version?\n",
@@ -2044,9 +2051,9 @@ static void ath10k_wmi_10x_service_ready_event_rx(struct ath10k *ar,
 			 * peers, 1 extra for self peer on target */
 			/* this needs to be tied, host and target
 			 * can get out of sync */
-			num_units = TARGET_10X_NUM_PEERS + 1;
+			num_units = my_num_peers + 1;
 		else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS)
-			num_units = TARGET_10X_NUM_VDEVS + 1;
+			num_units = my_num_vdevs + 1;
 
 		ath10k_dbg(ATH10K_DBG_WMI,
 			   "wmi mem_req_id %d num_units %d num_unit_info %d unit size %d actual units %d\n",
@@ -2657,11 +2664,17 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	u32 len, val;
 	int i;
 
-	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
-	config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features)) {
+		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS_CT);
+		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS_CT);
+		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT_CT);
+	} else {
+		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
+		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
+		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT);
+	}
 	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
 	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
-	config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT);
 	config.tx_chain_mask = __cpu_to_le32(TARGET_10X_TX_CHAIN_MASK);
 	config.rx_chain_mask = __cpu_to_le32(TARGET_10X_RX_CHAIN_MASK);
 	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);

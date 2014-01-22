@@ -684,14 +684,14 @@ static int ath10k_monitor_create(struct ath10k *ar)
 		return 0;
 	}
 
-	bit = ffs(ar->free_vdev_map);
-	if (bit == 0) {
+	bit = __ffs64(ar->free_vdev_map);
+	if (bit == 0 || !ar->free_vdev_map) {
 		ath10k_warn("no free vdev slots\n");
 		return -ENOMEM;
 	}
 
 	ar->monitor_vdev_id = bit - 1;
-	ar->free_vdev_map &= ~(1 << ar->monitor_vdev_id);
+	ar->free_vdev_map &= ~(1LL << ar->monitor_vdev_id);
 
 	ret = ath10k_wmi_vdev_create(ar, ar->monitor_vdev_id,
 				     WMI_VDEV_TYPE_MONITOR,
@@ -712,7 +712,7 @@ vdev_fail:
 	/*
 	 * Restore the ID to the global map.
 	 */
-	ar->free_vdev_map |= 1 << (ar->monitor_vdev_id);
+	ar->free_vdev_map |= (1LL << ar->monitor_vdev_id);
 	return ret;
 }
 
@@ -732,7 +732,7 @@ static int ath10k_monitor_destroy(struct ath10k *ar)
 		return ret;
 	}
 
-	ar->free_vdev_map |= 1 << (ar->monitor_vdev_id);
+	ar->free_vdev_map |= (1LL << ar->monitor_vdev_id);
 	ar->monitor_present = false;
 
 	ath10k_dbg(ATH10K_DBG_MAC, "mac monitor vdev %d deleted\n",
@@ -2573,13 +2573,17 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
-	bit = ffs(ar->free_vdev_map);
-	if (bit == 0) {
+	bit = __ffs64(ar->free_vdev_map);
+	if (!ar->free_vdev_map) {
+		ath10k_warn("Free vdev map is empty, no more interfaces allowed: %llu, bit: %i\n",
+			    ar->free_vdev_map, bit);
 		ret = -EBUSY;
 		goto err;
 	}
+	ath10k_warn("Creating vdev id: %i  map: %llu\n",
+		    bit, ar->free_vdev_map);
 
-	arvif->vdev_id = bit - 1;
+	arvif->vdev_id = bit;
 	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
 
 	if (ar->p2p)
@@ -2620,7 +2624,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
-	ar->free_vdev_map &= ~BIT(arvif->vdev_id);
+	ar->free_vdev_map &= ~(1LL << arvif->vdev_id);
 	list_add(&arvif->list, &ar->arvifs);
 
 	vdev_param = ar->wmi.vdev_param->def_keyid;
@@ -2716,7 +2720,7 @@ err_peer_delete:
 
 err_vdev_delete:
 	ath10k_wmi_vdev_delete(ar, arvif->vdev_id);
-	ar->free_vdev_map &= ~BIT(arvif->vdev_id);
+	ar->free_vdev_map &= ~(1LL << arvif->vdev_id);
 	list_del(&arvif->list);
 
 err:
@@ -2743,7 +2747,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	}
 	spin_unlock_bh(&ar->data_lock);
 
-	ar->free_vdev_map |= 1 << (arvif->vdev_id);
+	ar->free_vdev_map |= (1LL << arvif->vdev_id);
 	list_del(&arvif->list);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
@@ -3302,7 +3306,9 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		/*
 		 * New station addition.
 		 */
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features))
+			max_num_peers = TARGET_10X_NUM_PEERS_CT - 1;
+		else if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
 			max_num_peers = TARGET_10X_NUM_PEERS_MAX - 1;
 		else
 			max_num_peers = TARGET_NUM_PEERS;
@@ -4362,6 +4368,22 @@ static const struct ieee80211_iface_limit ath10k_10x_if_limits[] = {
 	},
 };
 
+static const struct ieee80211_iface_limit ath10k_10x_ct_if_limits[] = {
+	{
+	.max	= TARGET_10X_NUM_VDEVS_CT,
+	.types	= BIT(NL80211_IFTYPE_STATION)
+		| BIT(NL80211_IFTYPE_P2P_CLIENT)
+	},
+	{
+	.max	= 3,
+	.types	= BIT(NL80211_IFTYPE_P2P_GO)
+	},
+	{
+	.max	= 7,
+	.types	= BIT(NL80211_IFTYPE_AP)
+	},
+};
+
 static const struct ieee80211_iface_combination ath10k_if_comb[] = {
 	{
 		.limits = ath10k_if_limits,
@@ -4377,6 +4399,22 @@ static const struct ieee80211_iface_combination ath10k_10x_if_comb[] = {
 		.limits = ath10k_10x_if_limits,
 		.n_limits = ARRAY_SIZE(ath10k_10x_if_limits),
 		.max_interfaces = 8,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+#ifdef CONFIG_ATH10K_DFS_CERTIFIED
+		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+					BIT(NL80211_CHAN_WIDTH_20) |
+					BIT(NL80211_CHAN_WIDTH_40) |
+					BIT(NL80211_CHAN_WIDTH_80),
+#endif
+	},
+};
+
+static const struct ieee80211_iface_combination ath10k_10x_ct_if_comb[] = {
+	{
+		.limits = ath10k_10x_ct_if_limits,
+		.n_limits = ARRAY_SIZE(ath10k_10x_ct_if_limits),
+		.max_interfaces = TARGET_10X_NUM_VDEVS_CT,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 #ifdef CONFIG_ATH10K_DFS_CERTIFIED
@@ -4614,7 +4652,11 @@ int ath10k_mac_register(struct ath10k *ar)
 	 */
 	ar->hw->queues = 4;
 
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features)) {
+		ar->hw->wiphy->iface_combinations = ath10k_10x_ct_if_comb;
+		ar->hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(ath10k_10x_ct_if_comb);
+	} else if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
 		ar->hw->wiphy->iface_combinations = ath10k_10x_if_comb;
 		ar->hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(ath10k_10x_if_comb);
