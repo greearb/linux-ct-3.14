@@ -2664,10 +2664,19 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	u32 len, val;
 	int i;
 
+	config.rx_decap_mode = __cpu_to_le32(TARGET_10X_RX_DECAP_MODE);
+
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features)) {
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS_CT);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS_CT);
 		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT_CT);
+
+		if (ath10k_modparam_nohwcrypt)
+			/* This will disable rx decryption in hardware, enable raw
+			 * rx mode, and native-wifi tx mode.  Requires 'CT' firmware.
+			 */
+			config.rx_decap_mode = __cpu_to_le32(ATH10K_HW_TXRX_RAW |
+							     ATH10k_USE_SW_RX_CRYPT);
 	} else {
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
@@ -2681,7 +2690,6 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_bk = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_HI_PRI);
-	config.rx_decap_mode = __cpu_to_le32(TARGET_10X_RX_DECAP_MODE);
 
 	config.scan_max_pending_reqs =
 		__cpu_to_le32(TARGET_10X_SCAN_MAX_PENDING_REQS);

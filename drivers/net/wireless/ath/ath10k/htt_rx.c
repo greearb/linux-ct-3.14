@@ -21,6 +21,7 @@
 #include "txrx.h"
 #include "debug.h"
 #include "trace.h"
+#include "mac.h"
 
 #include <linux/log2.h>
 
@@ -759,18 +760,18 @@ static void ath10k_htt_rx_h_protected(struct ath10k_htt *htt,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 
-	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE) {
+	if ((enctype == HTT_RX_MPDU_ENCRYPT_NONE) ||
+	    !ath10k_modparam_nohwcrypt) {
 		rx_status->flag &= ~(RX_FLAG_DECRYPTED |
 				     RX_FLAG_IV_STRIPPED |
 				     RX_FLAG_MMIC_STRIPPED);
-		return;
+	} else {
+		rx_status->flag |= (RX_FLAG_DECRYPTED |
+				    RX_FLAG_IV_STRIPPED |
+				    RX_FLAG_MMIC_STRIPPED);
+		hdr->frame_control = __cpu_to_le16(__le16_to_cpu(hdr->frame_control) &
+						   ~IEEE80211_FCTL_PROTECTED);
 	}
-
-	rx_status->flag |= RX_FLAG_DECRYPTED |
-			   RX_FLAG_IV_STRIPPED |
-			   RX_FLAG_MMIC_STRIPPED;
-	hdr->frame_control = __cpu_to_le16(__le16_to_cpu(hdr->frame_control) &
-					   ~IEEE80211_FCTL_PROTECTED);
 }
 
 static bool ath10k_htt_rx_h_channel(struct ath10k *ar,
@@ -1121,12 +1122,34 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	    status != HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR &&
 	    status != HTT_RX_IND_MPDU_STATUS_ERR_INV_PEER &&
 	    !htt->ar->monitor_enabled) {
-		ath10k_dbg(ATH10K_DBG_HTT,
-			   "htt rx ignoring frame w/ status %d\n",
-			   status);
+		if (status == HTT_RX_IND_MPDU_STATUS_ERR_DUP) {
+			/* Saw this during some attempts at
+			 * having multiple stations connected
+			 * to same AP.  The CT firmware should
+			 * fix this.
+			 */
+			ath10k_dbg(ATH10K_DBG_HTT,
+				   "htt rx: status DUP\n");
+		} else if (status == HTT_RX_IND_MPDU_STATUS_ERR_FCS) {
+			/* This is seen when using sw-rx-crypt
+			 * (CT firmware only, other firmware
+			 * will not do sw-rx-crypt at all))
+			 * Ignore this if we are in rx-sw-crypt
+			 * mode.
+			 */
+			if (ath10k_modparam_nohwcrypt)
+				goto continue_on;
+			ath10k_dbg(ATH10K_DBG_HTT,
+				   "htt rx:  status ERR_FCS\n");
+		} else {
+			ath10k_dbg(ATH10K_DBG_HTT,
+				   "htt rx ignoring frame w/ status %d\n",
+				   status);
+		}
 		return false;
 	}
 
+continue_on:
 	if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
 		ath10k_dbg(ATH10K_DBG_HTT,
 			   "htt rx CAC running\n");
@@ -1228,7 +1251,8 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				continue;
 			}
 
-			if (attention & RX_ATTENTION_FLAGS_FCS_ERR)
+			if ((attention & RX_ATTENTION_FLAGS_FCS_ERR) &&
+			    !ath10k_modparam_nohwcrypt)
 				rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 			else
 				rx_status->flag &= ~RX_FLAG_FAILED_FCS_CRC;
