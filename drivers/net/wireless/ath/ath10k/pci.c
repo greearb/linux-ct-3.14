@@ -1000,7 +1000,8 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 				}
 
 				ath10k_dbg_print_fw_dbg_buffer(buffer,
-							       dbuf.length);
+							       dbuf.length,
+							       KERN_ERR);
 				kfree(buffer);
 			}
 		}

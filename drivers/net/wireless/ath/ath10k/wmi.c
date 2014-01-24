@@ -1078,7 +1078,8 @@ static int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 	trace_ath10k_wmi_dbglog(skb->data, skb->len);
 
 	if (ath10k_debug_mask & ATH10K_DBG_FIRMWARE)
-		ath10k_dbg_print_fw_dbg_buffer((u8 *)(&(m[1])), skb->len - 4);
+		ath10k_dbg_print_fw_dbg_buffer((u8 *)(&(m[1])), skb->len - 4,
+					       KERN_INFO);
 	return 0;
 }
 

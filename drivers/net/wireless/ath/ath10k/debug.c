@@ -931,19 +931,25 @@ void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 EXPORT_SYMBOL(ath10k_dbg_dump);
 
 
-void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len)
+void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len, const char* lvl)
 {
 	/* Print out raw hex, external tools can decode if
 	 * they care.
 	 */
 	int q = 0;
 
-	printk("ATH10K_DBG_BUFFER:\n");
+	printk("%sATH10K_DBG_BUFFER:\n", lvl);
+	printk("%s", lvl);
 	for (q = 0; q < len; q++) {
-		printk("%02hx ", buffer[q]);
-		if (q % 24 == 23)
-			printk("\n");
+		if ((q + 1) % 23 == 0) {
+			printk("%02hx\n", buffer[q]);
+			printk("%s", lvl);
+		} else {
+			printk("%02hx ", buffer[q]);
+		}
 	}
+	if (q && ((q - 1) % 23 != 23))
+		printk("%s", lvl);
 	printk("ATH10K_END\n");
 }
 EXPORT_SYMBOL(ath10k_dbg_print_fw_dbg_buffer);

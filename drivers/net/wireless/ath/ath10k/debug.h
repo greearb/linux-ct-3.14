@@ -133,6 +133,6 @@ struct dbglog_hdr_s {
 	u32 dropped;
 } __packed;
 
-void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len);
+void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len, const char* lvl);
 
 #endif /* _DEBUG_H_ */
