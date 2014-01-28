@@ -2689,17 +2689,24 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS_CT);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS_CT);
 		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT_CT);
-
 		if (ath10k_modparam_nohwcrypt)
 			/* This will disable rx decryption in hardware, enable raw
 			 * rx mode, and native-wifi tx mode.  Requires 'CT' firmware.
 			 */
 			config.rx_decap_mode = __cpu_to_le32(ATH10K_HW_TXRX_RAW |
 							     ATH10k_USE_SW_RX_CRYPT);
+		config.roam_offload_max_vdev = 0; /* disable roaming */
+		config.roam_offload_max_ap_profiles = 0; /* disable roaming */
 	} else {
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
 		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT);
+		config.roam_offload_max_vdev =
+			__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_VDEV);
+
+		config.roam_offload_max_ap_profiles =
+			__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_AP_PROFILES);
+
 	}
 	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
 	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
@@ -2715,12 +2722,6 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 
 	config.bmiss_offload_max_vdev =
 		__cpu_to_le32(TARGET_10X_BMISS_OFFLOAD_MAX_VDEV);
-
-	config.roam_offload_max_vdev =
-		__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_VDEV);
-
-	config.roam_offload_max_ap_profiles =
-		__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_AP_PROFILES);
 
 	config.num_mcast_groups = __cpu_to_le32(TARGET_10X_NUM_MCAST_GROUPS);
 	config.num_mcast_table_elems =
