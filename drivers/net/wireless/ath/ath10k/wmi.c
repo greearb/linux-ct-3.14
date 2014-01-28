@@ -773,7 +773,25 @@ static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg(ATH10K_DBG_WMI, "WMI_SCAN_EVENT_PREEMPTED\n");
 		break;
 	case WMI_SCAN_EVENT_START_FAILED:
-		ath10k_dbg(ATH10K_DBG_WMI, "WMI_SCAN_EVENT_START_FAILED\n");
+		ath10k_warn("WMI_SCAN_EVENT_START_FAILED, reason: %i\n", reason);
+
+		ar->scan_channel = NULL;
+		if (!ar->scan.in_progress) {
+			ath10k_warn("scan-start-failed: no scan requested, ignoring\n");
+			break;
+		}
+
+		if (ar->scan.is_roc) {
+			ath10k_offchan_tx_purge(ar);
+
+			if (!ar->scan.aborting)
+				ieee80211_remain_on_channel_expired(ar->hw);
+		} else {
+			ieee80211_scan_completed(ar->hw, ar->scan.aborting);
+		}
+
+		del_timer(&ar->scan.timeout);
+		ar->scan.in_progress = false;
 		break;
 	default:
 		break;
