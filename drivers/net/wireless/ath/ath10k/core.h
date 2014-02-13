@@ -443,6 +443,7 @@ struct ath10k {
 	unsigned int filter_flags;
 	unsigned long dev_flags;
 	u32 dfs_block_radar_events;
+	int install_key_rv; /* Store error code from key-install */
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
