@@ -1066,6 +1066,13 @@ do_restart:
 	queue_work(ar->workqueue, &ar->restart_work);
 }
 
+static int ath10k_pci_hif_handle_firmware_hang(struct ath10k *ar)
+{
+	ath10k_pci_wake(ar);
+	ath10k_pci_hif_dump_area(ar);
+	return 0;
+}
+
 static void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
 					       int force)
 {
@@ -2300,6 +2307,7 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.suspend		= ath10k_pci_hif_suspend,
 	.resume			= ath10k_pci_hif_resume,
 #endif
+	.handle_firmware_hang   = ath10k_pci_hif_handle_firmware_hang,
 };
 
 static void ath10k_pci_ce_tasklet(unsigned long ptr)

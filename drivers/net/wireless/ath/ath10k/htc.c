@@ -154,6 +154,16 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 		if (ep->tx_credits < credits) {
 			spin_unlock_bh(&htc->tx_lock);
 			ret = -EAGAIN;
+			if (htc->ar->no_tx_credits_at &&
+			    time_after(jiffies, htc->ar->no_tx_credits_at)) {
+				/* We have not received new credits in a while, assume
+				 * firmware is dead.
+				 */
+				ath10k_err("No new tx-credits received in 60 seconds, assuming firmware crashed.\n");
+				ath10k_hif_handle_firmware_hang(htc->ar);
+			} else {
+				htc->ar->no_tx_credits_at = jiffies + 60*HZ;
+			}
 			goto err_pull;
 		}
 		ep->tx_credits -= credits;
@@ -240,6 +250,7 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 
 		ep = &htc->endpoint[report->eid];
 		ep->tx_credits += report->credits;
+		htc->ar->no_tx_credits_at = 0;
 
 		ath10k_dbg(ATH10K_DBG_HTC, "ep %d got %d credits tot %d\n",
 			   report->eid, report->credits, ep->tx_credits);

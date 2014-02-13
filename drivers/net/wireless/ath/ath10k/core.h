@@ -465,6 +465,9 @@ struct ath10k {
 	/* number of created peers; protected by data_lock */
 	int num_peers;
 
+	/* Timer used to detect firmware hang due to no credits being received. */
+	unsigned long no_tx_credits_at;
+
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;

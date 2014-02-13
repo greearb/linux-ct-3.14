@@ -89,6 +89,9 @@ struct ath10k_hif_ops {
 
 	int (*suspend)(struct ath10k *ar);
 	int (*resume)(struct ath10k *ar);
+
+	/* Deal with detected firmware hang. */
+	int (*handle_firmware_hang)(struct ath10k *ar);
 };
 
 
@@ -126,6 +129,11 @@ static inline int ath10k_hif_map_service_to_pipe(struct ath10k *ar,
 	return ar->hif.ops->map_service_to_pipe(ar, service_id,
 						ul_pipe, dl_pipe,
 						ul_is_polled, dl_is_polled);
+}
+
+static inline void ath10k_hif_handle_firmware_hang(struct ath10k *ar)
+{
+	ar->hif.ops->handle_firmware_hang(ar);
 }
 
 static inline void ath10k_hif_get_default_pipe(struct ath10k *ar,
