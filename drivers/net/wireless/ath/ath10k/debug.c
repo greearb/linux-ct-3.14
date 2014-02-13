@@ -89,8 +89,7 @@ int ath10k_warn(const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 
-	if (net_ratelimit())
-		ret = ath10k_printk(KERN_WARNING, "%pV", &vaf);
+	ret = ath10k_printk(KERN_WARNING, "%pV", &vaf);
 
 	trace_ath10k_log_warn(&vaf);
 
