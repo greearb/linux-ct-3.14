@@ -405,6 +405,12 @@ struct ath10k {
 
 	int fw_api;
 
+	/* Used to dump the firmware bss for debugging purposes. */
+	unsigned int fw_ram_bss_addr;
+	unsigned int fw_ram_bss_len;
+	unsigned int fw_rom_bss_addr;
+	unsigned int fw_rom_bss_len;
+
 	struct {
 		struct completion started;
 		struct completion completed;

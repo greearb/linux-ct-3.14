@@ -509,6 +509,16 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 			ar->otp_len = ie_len;
 
 			break;
+		case ATH10K_FW_IE_BSS_INFO:
+			ar->fw_ram_bss_addr = le32_to_cpu(((u32*)(data))[0]);
+			ar->fw_ram_bss_len = le32_to_cpu(((u32*)(data))[1]);
+			ar->fw_rom_bss_addr = le32_to_cpu(((u32*)(data))[2]);
+			ar->fw_rom_bss_len = le32_to_cpu(((u32*)(data))[3]);
+			ath10k_dbg(ATH10K_DBG_BOOT,
+				   "found FW bss info, RAM: addr 0x%x len 0x%x  ROM: addr 0x%x len 0x%x\n",
+				   ar->fw_ram_bss_addr, ar->fw_ram_bss_len,
+				   ar->fw_rom_bss_addr, ar->fw_rom_bss_len);
+			break;
 		default:
 			ath10k_warn("Unknown FW IE: %u\n",
 				    le32_to_cpu(hdr->id));

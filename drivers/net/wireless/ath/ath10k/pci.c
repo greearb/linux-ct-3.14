@@ -823,10 +823,53 @@ static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 	return ath10k_ce_num_free_src_entries(ar_pci->pipe_info[pipe].ce_hdl);
 }
 
+#define A10K_FW_STACK_SIZE 4096
+static void check_dump_fw_bss(struct ath10k *ar, unsigned int bss_addr,
+			      unsigned int bss_len, unsigned char* stack_buf,
+			      bool is_ram)
+{
+	unsigned int host_addr;
+	int to_read = bss_len;
+	u32 *stack_bufi = (u32 *)(stack_buf);
+	int ret;
+
+	if (bss_addr == 0 || bss_len == 0)
+		return;
+
+	host_addr = host_interest_item_address(bss_addr);
+
+	ath10k_err("target BSS Dump: %s 0x%08x  len: %i\n",
+		   is_ram ? "RAM" : "ROM", host_addr, to_read);
+
+	while (to_read > 0) {
+		int this_read = min(to_read, A10K_FW_STACK_SIZE);
+		int i;
+
+		ret = ath10k_pci_diag_read_mem(ar, host_addr + (bss_len - to_read),
+					       stack_buf, this_read);
+		if (ret != 0) {
+			ath10k_err("could not dump FW BSS Area\n");
+			return;
+		}
+
+		for (i = 0; i < this_read/4; i += 8)
+			ath10k_err("[%04d]: %08X %08X %08X %08X %08X %08X %08X %08X\n",
+				   i + ((bss_len - to_read) / 4),
+				   stack_bufi[i],
+				   stack_bufi[i + 1],
+				   stack_bufi[i + 2],
+				   stack_bufi[i + 3],
+				   stack_bufi[i + 4],
+				   stack_bufi[i + 5],
+				   stack_bufi[i + 6],
+				   stack_bufi[i + 7]);
+		to_read -= this_read;
+	}
+}
+
 void ath10k_log_firmware_stack(struct ath10k *ar)
 {
 	/* Max size in firmware is 4k */
-#define A10K_FW_STACK_SIZE 4096
 	u32 host_addr;
 	u32 reg_dump_area;
 	int i;
@@ -893,6 +936,10 @@ void ath10k_log_firmware_stack(struct ath10k *ar)
 			   stack_bufi[i + 5],
 			   stack_bufi[i + 6],
 			   stack_bufi[i + 7]);
+
+	/* And the RAM BSS region, if we know it. */
+	check_dump_fw_bss(ar, ar->fw_ram_bss_addr, ar->fw_ram_bss_len, stack_buf, true);
+	check_dump_fw_bss(ar, ar->fw_rom_bss_addr, ar->fw_rom_bss_len, stack_buf, false);
 
 done_stack:
 	kfree(stack_buf);
