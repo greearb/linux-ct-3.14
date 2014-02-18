@@ -2697,6 +2697,7 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 							     ATH10k_USE_SW_RX_CRYPT);
 		config.roam_offload_max_vdev = 0; /* disable roaming */
 		config.roam_offload_max_ap_profiles = 0; /* disable roaming */
+		config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS_CT);
 	} else {
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS);
@@ -2707,8 +2708,8 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 		config.roam_offload_max_ap_profiles =
 			__cpu_to_le32(TARGET_10X_ROAM_OFFLOAD_MAX_AP_PROFILES);
 
+		config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
 	}
-	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
 	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
 	config.tx_chain_mask = __cpu_to_le32(TARGET_10X_TX_CHAIN_MASK);
 	config.rx_chain_mask = __cpu_to_le32(TARGET_10X_RX_CHAIN_MASK);
