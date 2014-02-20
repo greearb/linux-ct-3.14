@@ -544,7 +544,10 @@ static int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 	cmd_hdr->cmd_id = __cpu_to_le32(cmd);
 
 	memset(skb_cb, 0, sizeof(*skb_cb));
-	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
+	/* 0x71100000 is hack so that we know the debug value is a cmd-id
+	 * instead of a line number.
+	 */
+	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb, 0x71100000 | cmd_id);
 	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len, ret);
 
 	if (ret)

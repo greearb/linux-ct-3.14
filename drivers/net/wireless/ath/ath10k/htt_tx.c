@@ -173,7 +173,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 	cmd = (struct htt_cmd *)skb->data;
 	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_VERSION_REQ;
 
-	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb, __LINE__);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		return ret;
@@ -212,7 +212,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	req->cookie_lsb = cpu_to_le32(cookie & 0xffffffff);
 	req->cookie_msb = cpu_to_le32((cookie & 0xffffffff00000000ULL) >> 32);
 
-	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb, __LINE__);
 	if (ret) {
 		ath10k_warn("failed to send htt type stats request: %d", ret);
 		dev_kfree_skb_any(skb);
@@ -298,7 +298,7 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 
 #undef desc_offset
 
-	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb, __LINE__);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		return ret;
@@ -360,7 +360,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	skb_cb->htt.txbuf = NULL;
 
-	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc);
+	res = ath10k_htc_send(&htt->ar->htc, htt->eid, txdesc, __LINE__);
 	if (res)
 		goto err_unmap_msdu;
 

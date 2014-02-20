@@ -355,8 +355,12 @@ int ath10k_htc_start(struct ath10k_htc *htc);
 int ath10k_htc_connect_service(struct ath10k_htc *htc,
 			       struct ath10k_htc_svc_conn_req  *conn_req,
 			       struct ath10k_htc_svc_conn_resp *conn_resp);
+/* dbg is used for logging, trying to track roughly what kind of command
+ * we are sending and/or where it came from.  May help debug firmware
+ * issues where we do not get tx-credits returned properly.
+ */
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
-		    struct sk_buff *packet);
+		    struct sk_buff *packet, int dbg);
 void ath10k_htc_stop(struct ath10k_htc *htc);
 struct sk_buff *ath10k_htc_alloc_skb(int size);
 

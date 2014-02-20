@@ -121,7 +121,7 @@ static void ath10k_htc_prepare_tx_skb(struct ath10k_htc_ep *ep,
 
 int ath10k_htc_send(struct ath10k_htc *htc,
 		    enum ath10k_htc_ep_id eid,
-		    struct sk_buff *skb)
+		    struct sk_buff *skb, int dbg)
 {
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
@@ -157,6 +157,10 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 			goto err_pull;
 		}
 		ep->tx_credits -= credits;
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "ep %d used %d credits, remaining %d dbg %d (0x%x)\n",
+			   eid, credits, ep->tx_credits, dbg, dbg);
+
 		spin_unlock_bh(&htc->tx_lock);
 	}
 
@@ -234,11 +238,11 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 		if (report->eid >= ATH10K_HTC_EP_COUNT)
 			break;
 
-		ath10k_dbg(ATH10K_DBG_HTC, "ep %d got %d credits\n",
-			   report->eid, report->credits);
-
 		ep = &htc->endpoint[report->eid];
 		ep->tx_credits += report->credits;
+
+		ath10k_dbg(ATH10K_DBG_HTC, "ep %d got %d credits tot %d\n",
+			   report->eid, report->credits, ep->tx_credits);
 
 		if (ep->ep_ops.ep_tx_credits) {
 			spin_unlock_bh(&htc->tx_lock);
@@ -669,7 +673,7 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 
 	reinit_completion(&htc->ctl_resp);
 
-	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb);
+	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb, __LINE__);
 	if (status) {
 		kfree_skb(skb);
 		return status;
@@ -815,7 +819,7 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 
 	ath10k_dbg(ATH10K_DBG_HTC, "HTC is using TX credit flow control\n");
 
-	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb);
+	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb, __LINE__);
 	if (status) {
 		kfree_skb(skb);
 		return status;
