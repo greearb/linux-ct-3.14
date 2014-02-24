@@ -1073,6 +1073,13 @@ static int ath10k_pci_hif_handle_firmware_hang(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_pci_hif_read_target_mem(struct ath10k *ar, u32 targ_addr,
+					  void* dst, int len)
+{
+	ath10k_pci_wake(ar);
+	return ath10k_pci_diag_read_mem(ar, targ_addr, dst, len);
+}
+
 static void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
 					       int force)
 {
@@ -2308,6 +2315,7 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.resume			= ath10k_pci_hif_resume,
 #endif
 	.handle_firmware_hang   = ath10k_pci_hif_handle_firmware_hang,
+	.read_target_mem        = ath10k_pci_hif_read_target_mem,
 };
 
 static void ath10k_pci_ce_tasklet(unsigned long ptr)

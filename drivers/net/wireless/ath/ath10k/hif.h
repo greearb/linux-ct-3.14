@@ -92,6 +92,10 @@ struct ath10k_hif_ops {
 
 	/* Deal with detected firmware hang. */
 	int (*handle_firmware_hang)(struct ath10k *ar);
+
+	/* Read target memory into specified destination.  Used for
+	 * debugging currently. */
+	int (*read_target_mem)(struct ath10k *ar, u32 targ_addr, void* dst, int len);
 };
 
 
@@ -134,6 +138,12 @@ static inline int ath10k_hif_map_service_to_pipe(struct ath10k *ar,
 static inline void ath10k_hif_handle_firmware_hang(struct ath10k *ar)
 {
 	ar->hif.ops->handle_firmware_hang(ar);
+}
+
+static inline int ath10k_hif_read_target_mem(struct ath10k *ar, u32 targ_addr,
+					     void* dst, int len)
+{
+	return ar->hif.ops->read_target_mem(ar, targ_addr, dst, len);
 }
 
 static inline void ath10k_hif_get_default_pipe(struct ath10k *ar,
