@@ -58,7 +58,7 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 		   tx_done->msdu_id, !!tx_done->discard, !!tx_done->no_ack);
 
 	if (tx_done->msdu_id >= htt->max_num_pending_tx) {
-		ath10k_warn("warning: msdu_id %d too big, ignoring\n",
+		ath10k_warn("error: msdu_id %d too big, ignoring\n",
 			    tx_done->msdu_id);
 		return;
 	}
