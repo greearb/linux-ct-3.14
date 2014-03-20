@@ -135,4 +135,6 @@ struct dbglog_hdr_s {
 
 void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len, const char* lvl);
 
+int ath10k_refresh_peer_stats(struct ath10k *ar);
+
 #endif /* _DEBUG_H_ */
