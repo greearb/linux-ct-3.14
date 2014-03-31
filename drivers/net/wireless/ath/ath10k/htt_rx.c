@@ -759,18 +759,18 @@ static void ath10k_htt_rx_h_protected(struct ath10k_htt *htt,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-
-	if ((enctype == HTT_RX_MPDU_ENCRYPT_NONE) ||
-	    !ath10k_modparam_nohwcrypt) {
+	if (enctype == HTT_RX_MPDU_ENCRYPT_NONE) {
 		rx_status->flag &= ~(RX_FLAG_DECRYPTED |
 				     RX_FLAG_IV_STRIPPED |
 				     RX_FLAG_MMIC_STRIPPED);
 	} else {
-		rx_status->flag |= (RX_FLAG_DECRYPTED |
-				    RX_FLAG_IV_STRIPPED |
-				    RX_FLAG_MMIC_STRIPPED);
-		hdr->frame_control = __cpu_to_le16(__le16_to_cpu(hdr->frame_control) &
-						   ~IEEE80211_FCTL_PROTECTED);
+		if (!ath10k_modparam_nohwcrypt) {
+			rx_status->flag |= (RX_FLAG_DECRYPTED |
+					    RX_FLAG_IV_STRIPPED |
+					    RX_FLAG_MMIC_STRIPPED);
+			hdr->frame_control = __cpu_to_le16(__le16_to_cpu(hdr->frame_control) &
+							   ~IEEE80211_FCTL_PROTECTED);
+		}
 	}
 }
 
