@@ -372,6 +372,7 @@ struct ath10k {
 	u8 mac_addr[ETH_ALEN];
 	u8 wmi_cmd_timeouts; /* failure case counter */
 	bool forcing_reset; /* Have we scheduled a forced reset? */
+	u8 tx_flush_failed; /* failure case counter */
 
 	u32 chip_id;
 	u32 target_version;
@@ -404,6 +405,13 @@ struct ath10k {
 	struct ath10k_wmi wmi;
 	struct ath10k_htc htc;
 	struct ath10k_htt htt;
+
+	/* Stats to help debug tx hang issues */
+	u64 htc_send_tot;
+	u64 htc_tx;
+	u64 htc_tx_compl;
+	u64 htc_mgt_tx;
+	u64 htc_mgt_compl;
 
 	struct ath10k_hw_params {
 		u32 id;

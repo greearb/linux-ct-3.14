@@ -1457,6 +1457,7 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 			tx_done.tx_rate_code = resp->data_tx_completion_ct.msdus[i].tx_rate_code;
 			tx_done.tx_rate_flags = resp->data_tx_completion_ct.msdus[i].tx_rate_flags;
 			ath10k_txrx_tx_unref(htt, &tx_done);
+			ar->htc_tx_compl++;
 		}
 	} else {
 		/* Uptream firmware does not report any tx-rate */
@@ -1466,6 +1467,7 @@ static void ath10k_htt_rx_frm_tx_compl(struct ath10k *ar,
 			msdu_id = resp->data_tx_completion.msdus[i];
 			tx_done.msdu_id = __le16_to_cpu(msdu_id);
 			ath10k_txrx_tx_unref(htt, &tx_done);
+			ar->htc_tx_compl++;
 		}
 	}
 }
@@ -1532,6 +1534,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 
 		spin_lock_bh(&htt->tx_lock);
 		ath10k_txrx_tx_unref(htt, &tx_done);
+		ar->htc_mgt_compl++;
 		spin_unlock_bh(&htt->tx_lock);
 		break;
 	}

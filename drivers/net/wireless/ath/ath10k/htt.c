@@ -56,6 +56,10 @@ int ath10k_htt_attach(struct ath10k *ar)
 	htt->ar = ar;
 	htt->max_throughput_mbps = 800;
 
+	/* Clear some htc related counters */
+	ar->htc_send_tot = ar->htc_tx = ar->htc_tx_compl = ar->htc_mgt_tx = 0;
+	ar->htc_mgt_compl = 0;
+
 	/*
 	 * Connect to HTC service.
 	 * This has to be done before calling ath10k_htt_rx_attach,

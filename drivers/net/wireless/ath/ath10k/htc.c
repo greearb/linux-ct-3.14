@@ -179,6 +179,8 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 	if (ret)
 		goto err_unmap;
 
+	htc->ar->htc_send_tot++;
+
 	return 0;
 
 err_unmap:

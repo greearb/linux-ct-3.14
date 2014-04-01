@@ -375,6 +375,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (res)
 		goto err_unmap_msdu;
 
+	htt->ar->htc_mgt_tx++;
 	return 0;
 
 err_unmap_msdu:
@@ -539,6 +540,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (res)
 		goto err_unmap_msdu;
 
+	htt->ar->htc_tx++;
 	return 0;
 
 err_unmap_msdu:

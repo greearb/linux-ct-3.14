@@ -3920,6 +3920,14 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	struct ath10k *ar = hw->priv;
 	bool skip;
 	int ret;
+	s32 hw_queued;
+	s32 hw_reaped;
+	int num_pending_tx;
+	u64 htc_send_tot;
+	u64 htc_tx;
+	u64 htc_tx_compl;
+	u64 htc_mgt_tx;
+	u64 htc_mgt_compl;
 
 	/* mac80211 doesn't care if we really xmit queued frames or not
 	 * we'll collect those frames either way if we stop/delete vdevs */
@@ -3931,6 +3939,19 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	if ((ar->state == ATH10K_STATE_WEDGED) ||
 	    ar->forcing_reset)
 		goto skip;
+
+	/* Refresh firmware stats to aid debugging */
+	ath10k_refresh_peer_stats(ar);
+
+	hw_queued = ar->debug.target_stats.hw_queued;
+	hw_reaped = ar->debug.target_stats.hw_reaped;
+	num_pending_tx = ar->htt.num_pending_tx;
+
+	htc_send_tot = ar->htc_send_tot;
+	htc_tx = ar->htc_tx;
+	htc_tx_compl = ar->htc_tx_compl;
+	htc_mgt_tx = ar->htc_mgt_tx;
+	htc_mgt_compl = ar->htc_mgt_compl;
 
 	ret = wait_event_timeout(ar->htt.empty_tx_wq, ({
 			bool empty;
@@ -3945,9 +3966,58 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			(empty || skip);
 		}), ATH10K_FLUSH_TIMEOUT_HZ);
 
-	if (ret <= 0 || skip)
-		ath10k_warn("failed to flush transmit queue (skip %i ar-state %i): %i\n",
-			    skip, ar->state, ret);
+	if (ret <= 0 || skip) {
+		int i;
+		/* Refresh firmware stats to aid debugging */
+		ath10k_refresh_peer_stats(ar);
+
+		ath10k_err("failed to flush transmit queue (skip %i ar-state %i pending_tx %i  pre-pending-tx: %i): %i\n",
+			   skip, ar->state, ar->htt.num_pending_tx,
+			   num_pending_tx, ret);
+		ath10k_err("pre: htc-send-tot: %llu  htt-tx %llu  tx-compl %llu  mgt-tx %llu  mgt-compl %llu\n",
+			   htc_send_tot, htc_tx, htc_tx_compl,
+			   htc_mgt_tx, htc_mgt_compl);
+		ath10k_err("post: htc-send-tot: %llu  htt-tx %llu  tx-compl %llu  mgt-tx %llu  mgt-compl %llu\n",
+			   ar->htc_send_tot, ar->htc_tx, ar->htc_tx_compl,
+			   ar->htc_mgt_tx, ar->htc_mgt_compl);
+		ath10k_err("pre: hw-queued: %d  hw-reaped: %d\n",
+			   hw_queued, hw_reaped);
+		ath10k_err("post: hw-queued: %d  hw-reaped: %d\n",
+			   ar->debug.target_stats.hw_queued,
+			   ar->debug.target_stats.hw_reaped);
+
+		for (i = 0; i < ar->htt.max_num_pending_tx; i++) {
+			int q;
+
+			if (!ar->htt.pending_tx[i])
+				continue;
+
+			ath10k_err("stuck-skb: %p len %d tx-id %d\n",
+				   ar->htt.pending_tx[i],
+				   ar->htt.pending_tx[i]->len, i);
+			/* Only print skb contents if debug data is
+			 * enabled.
+			 */
+			if (!(ath10k_debug_mask & ATH10K_DBG_DATA))
+				continue;
+			for (q = 0; q < ar->htt.pending_tx[i]->len; q++) {
+				printk("%02hx ",
+				       ar->htt.pending_tx[i]->data[q]);
+				if (((q + 1) & 0x1f) == 0x1f)
+					printk("\n");
+			}
+		}
+		if ((++ar->tx_flush_failed > 1) &&
+		    (ar->state != ATH10K_STATE_RESTARTING)) {
+			/* This does not appear recoverable, attempt reset. */
+			ath10k_err("failed to flush transmit queue %d times, attempting hardware reset.\n",
+				ar->tx_flush_failed);
+			ar->tx_flush_failed = 0;
+			queue_work(ar->workqueue, &ar->restart_work);
+		}
+	} else {
+		ar->tx_flush_failed = 0;
+	}
 
 skip:
 	mutex_unlock(&ar->conf_mutex);
