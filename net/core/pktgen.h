@@ -38,6 +38,7 @@
 #define F_QUEUE_MAP_RND (1<<13)	/* queue map Random */
 #define F_QUEUE_MAP_CPU (1<<14)	/* queue map mirrors smp_processor_id() */
 #define F_NODE          (1<<15)	/* Node memory alloc*/
+#define F_UDPCSUM       (1<<16)	/* Include UDP checksum */
 
 #define F_PG_STOPPED  (1<<28)   /* Endpoint is stopped, report only */
 #define F_CSUM        (1<<29)   /* Use UDP checksums */
