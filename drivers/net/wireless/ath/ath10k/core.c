@@ -751,6 +751,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	case ATH10K_STATE_ON:
 		ath10k_halt(ar);
 		ar->state = ATH10K_STATE_RESTARTING;
+		ath10k_warn("core-restart, going to state RESTARTING from ON\n");
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:
@@ -760,10 +761,11 @@ static void ath10k_core_restart(struct work_struct *work)
 		break;
 	case ATH10K_STATE_RESTARTING:
 	case ATH10K_STATE_RESTARTED:
-		ar->state = ATH10K_STATE_WEDGED;
 		/* fall through */
 	case ATH10K_STATE_WEDGED:
-		ath10k_warn("device is wedged, will not restart\n");
+		ath10k_warn("device is wedged, will not restart (state %d)\n",
+			ar->state);
+		ar->state = ATH10K_STATE_WEDGED;
 		break;
 	}
 
