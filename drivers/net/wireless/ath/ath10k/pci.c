@@ -1604,16 +1604,23 @@ err_dma:
 	return ret;
 }
 
-static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
+static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
+				     struct bmi_xfer *xfer)
 {
-	struct bmi_xfer *xfer;
+	void *ptr;
 	u32 ce_data;
 	unsigned int nbytes;
 	unsigned int transfer_id;
 
-	if (ath10k_ce_completed_send_next(ce_state, (void **)&xfer, &ce_data,
+	if (ath10k_ce_completed_send_next(ce_state, (void **)&ptr, &ce_data,
 					  &nbytes, &transfer_id))
 		return;
+
+	if (xfer != ptr) {
+		ath10k_warn("failed to verify bmi xfer tx pointer (got %p expected %p)\n",
+			    ptr, xfer);
+		return;
+	}
 
 	if (xfer->wait_for_resp)
 		return;
@@ -1621,17 +1628,24 @@ static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 	complete(&xfer->done);
 }
 
-static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
+static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state,
+				     struct bmi_xfer *xfer)
 {
-	struct bmi_xfer *xfer;
+	void *ptr;
 	u32 ce_data;
 	unsigned int nbytes;
 	unsigned int transfer_id;
 	unsigned int flags;
 
-	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer, &ce_data,
+	if (ath10k_ce_completed_recv_next(ce_state, (void **)&ptr, &ce_data,
 					  &nbytes, &transfer_id, &flags))
 		return;
+
+	if (xfer != ptr) {
+		ath10k_warn("failed to verify bmi xfer rx pointer (got %p expected %p)\n",
+			    ptr, xfer);
+		return;
+	}
 
 	if (!xfer->wait_for_resp) {
 		ath10k_warn("unexpected: BMI data received; ignoring\n");
@@ -1649,8 +1663,8 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 	unsigned long timeout = jiffies + BMI_COMMUNICATION_TIMEOUT_HZ;
 
 	while (time_before_eq(jiffies, timeout)) {
-		ath10k_pci_bmi_send_done(tx_pipe);
-		ath10k_pci_bmi_recv_data(rx_pipe);
+		ath10k_pci_bmi_send_done(tx_pipe, xfer);
+		ath10k_pci_bmi_recv_data(rx_pipe, xfer);
 
 		if (completion_done(&xfer->done))
 			return 0;
