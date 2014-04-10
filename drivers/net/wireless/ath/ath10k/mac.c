@@ -2307,23 +2307,26 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	ret = ath10k_hif_power_up(ar);
 	if (ret) {
-		ath10k_err("Could not init hif: %d\n", ret);
+		ath10k_err("Could not init hif: %d (state OFF)\n", ret);
 		ar->state = ATH10K_STATE_OFF;
 		goto exit;
 	}
 
 	ret = ath10k_core_start(ar);
 	if (ret) {
-		ath10k_err("Could not init core: %d\n", ret);
+		ath10k_err("Could not init core: %d (state OFF)\n", ret);
 		ath10k_hif_power_down(ar);
 		ar->state = ATH10K_STATE_OFF;
 		goto exit;
 	}
 
-	if (ar->state == ATH10K_STATE_OFF)
+	if (ar->state == ATH10K_STATE_OFF) {
+		ath10k_warn("start, state going from OFF to ON\n");
 		ar->state = ATH10K_STATE_ON;
-	else if (ar->state == ATH10K_STATE_RESTARTING)
+	} else if (ar->state == ATH10K_STATE_RESTARTING) {
+		ath10k_warn("start, state going from RESTARTING to RESTARTED\n");
 		ar->state = ATH10K_STATE_RESTARTED;
+	}
 
 	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pmf_qos, 1);
 	if (ret)
@@ -2368,6 +2371,7 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	    ar->state == ATH10K_STATE_WEDGED)
 		ath10k_halt(ar);
 
+	ath10k_warn("stop, state OFF\n");
 	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
@@ -3749,8 +3753,10 @@ static void ath10k_restart_complete(struct ieee80211_hw *hw)
 	/* If device failed to restart it will be in a different state, e.g.
 	 * ATH10K_STATE_WEDGED */
 	if (ar->state == ATH10K_STATE_RESTARTED) {
-		ath10k_info("device successfully recovered\n");
+		ath10k_info("device successfully recovered (state RESTARTED to ON)\n");
 		ar->state = ATH10K_STATE_ON;
+	} else {
+		ath10k_info("device failed to recover (state %d)\n", ar->state);
 	}
 
 	mutex_unlock(&ar->conf_mutex);
