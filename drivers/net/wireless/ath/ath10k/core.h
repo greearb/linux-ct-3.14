@@ -350,6 +350,8 @@ struct ath10k {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
+	u8 wmi_cmd_timeouts; /* failure case counter */
+	bool forcing_reset; /* Have we scheduled a forced reset? */
 
 	u32 chip_id;
 	u32 target_version;

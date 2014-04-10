@@ -2421,6 +2421,32 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	ath10k_tx_htt(ar, skb);
 }
 
+void ath10k_purge_scan(struct ath10k *ar)
+{
+	if (!ar->scan.in_progress)
+		return;
+
+	if (ar->scan.is_roc) {
+		ath10k_offchan_tx_purge(ar);
+
+		if (!ar->scan.aborting)
+			ieee80211_remain_on_channel_expired(ar->hw);
+	} else {
+		ieee80211_scan_completed(ar->hw, ar->scan.aborting);
+	}
+
+	del_timer(&ar->scan.timeout);
+	ar->scan.in_progress = false;
+}
+
+void ath10k_force_queue_restart(struct ath10k *ar) {
+	/* Clear error counters. */
+	ath10k_purge_scan(ar);
+	ar->wmi_cmd_timeouts = 0;
+	ar->forcing_reset = true;
+	queue_work(ar->workqueue, &ar->restart_work);
+}
+
 /*
  * Initialize various parameters with default vaules.
  */
@@ -2451,6 +2477,9 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	int ret = 0;
 
 	mutex_lock(&ar->conf_mutex);
+
+	/* We are no longer forcing reset, one way or another. */
+	ar->forcing_reset = false;
 
 	if (ar->state != ATH10K_STATE_OFF &&
 	    ar->state != ATH10K_STATE_RESTARTING) {
@@ -3801,7 +3830,8 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->state == ATH10K_STATE_WEDGED)
+	if ((ar->state == ATH10K_STATE_WEDGED) ||
+	    ar->forcing_reset)
 		goto skip;
 
 	ret = wait_event_timeout(ar->htt.empty_tx_wq, ({
@@ -3811,7 +3841,8 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			empty = (ar->htt.num_pending_tx == 0);
 			spin_unlock_bh(&ar->htt.tx_lock);
 
-			skip = (ar->state == ATH10K_STATE_WEDGED);
+			skip = ((ar->state == ATH10K_STATE_WEDGED) ||
+				ar->forcing_reset);
 
 			(empty || skip);
 		}), ATH10K_FLUSH_TIMEOUT_HZ);

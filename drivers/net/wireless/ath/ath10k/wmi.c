@@ -628,8 +628,24 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 		(ret != -EAGAIN);
 	}), 3*HZ);
 
-	if (ret)
+	if (ret) {
 		dev_kfree_skb_any(skb);
+		if (ret == -EAGAIN) {
+			/* If we fail two of these in a row, then firmware
+			 * is probably wedged.  So, restart it.
+			 */
+			ar->wmi_cmd_timeouts++;
+			if ((ar->wmi_cmd_timeouts >= 2) &&
+			    (ar->state == ATH10K_STATE_ON) &&
+			    (!ar->forcing_reset)) {
+				ath10k_err("failed with wmi_cmd_timeout %d times, attempting hardware reset.\n",
+					   ar->wmi_cmd_timeouts);
+				ath10k_force_queue_restart(ar);
+			}
+		}
+	} else {
+		ar->wmi_cmd_timeouts = 0;
+	}
 
 	return ret;
 }
@@ -776,17 +792,7 @@ static int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 			break;
 		}
 
-		if (ar->scan.is_roc) {
-			ath10k_offchan_tx_purge(ar);
-
-			if (!ar->scan.aborting)
-				ieee80211_remain_on_channel_expired(ar->hw);
-		} else {
-			ieee80211_scan_completed(ar->hw, ar->scan.aborting);
-		}
-
-		del_timer(&ar->scan.timeout);
-		ar->scan.in_progress = false;
+		ath10k_purge_scan(ar);
 		break;
 	default:
 		break;
