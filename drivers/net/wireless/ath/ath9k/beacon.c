@@ -443,6 +443,8 @@ static u32 ath9k_mod_tsf64_tu(u64 tsf, u32 div_tu)
 {
 	u32 tsf_mod, tsf_hi, tsf_lo, mod_hi, mod_lo;
 
+	if (WARN_ON_ONCE(div_tu == 0))
+		div_tu = 100;
 	tsf_mod = tsf & (BIT(10) - 1);
 	tsf_hi = tsf >> 32;
 	tsf_lo = ((u32) tsf) >> 10;
@@ -667,6 +669,8 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 		"Caching beacon data for BSS: %pM\n", bss_conf->bssid);
 
 	cur_conf->beacon_interval = bss_conf->beacon_int;
+	if (WARN_ON_ONCE(cur_conf->beacon_interval == 0))
+		cur_conf->beacon_interval = 100;
 	cur_conf->dtim_period = bss_conf->dtim_period;
 	cur_conf->listen_interval = 1;
 	cur_conf->dtim_count = 1;
