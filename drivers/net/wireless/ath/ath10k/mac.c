@@ -2016,7 +2016,7 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 			     ar->fw_features)) {
 			if (skb_queue_len(&ar->wmi_mgmt_tx_queue) >=
 			    ATH10K_MAX_NUM_MGMT_PENDING) {
-				ath10k_warn("reached WMI management tranmist queue limit\n");
+				ath10k_warn("reached WMI management transmit queue limit\n");
 				ret = -EBUSY;
 				goto exit;
 			}
@@ -2247,7 +2247,13 @@ void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
 		 *
 		 * Note: This is a deficiency in design of WMI_MGMT_TX command.
 		 */
-		ath10k_mgmt_tx_flush(ar, skb);
+		/* I believe CT firmware has this fixed so that it returns credits
+		 * in a timely manner, so disabling the hack for CT firmware as
+		 * long as we have at least one credit left.
+		 */
+		if (ar->htc.endpoint[ar->wmi.eid].tx_credits < 2 ||
+		    !test_bit(ATH10K_FW_FEATURE_WMI_10X_CT, ar->fw_features))
+			ath10k_mgmt_tx_flush(ar, skb);
 
 		mutex_unlock(&ar->conf_mutex);
 
