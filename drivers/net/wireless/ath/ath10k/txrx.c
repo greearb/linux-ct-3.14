@@ -53,9 +53,10 @@ static void ath10k_set_tx_rate_status(struct ieee80211_tx_rate *rate,
 	rate->count = 1;
 	rate->idx = rate_idx; // TODO-BEN:  This is most-likely wrong.
 
-	ath10k_warn("tx-rate-status, nss: %d  rate_idx: %d  code: 0x%x  flags 0x%x\n",
+	/*ath10k_warn("tx-rate-status, nss: %d  rate_idx: %d  code: 0x%x  flags 0x%x\n",
 		    (int)(nss), (int)(rate_idx), (int)(tx_done->tx_rate_code),
 		    (int)(tx_done->tx_rate_flags));
+	*/
 
 	if (((tx_done->tx_rate_code >> 6) & 0x3) == 1) { // CCK
 		//rate->flags |= IEEE80211_TX_RC_MCS;
