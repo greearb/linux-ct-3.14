@@ -2429,6 +2429,8 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 
 void ath10k_purge_scan(struct ath10k *ar)
 {
+	lockdep_assert_held(&ar->data_lock);
+
 	if (!ar->scan.in_progress)
 		return;
 
@@ -2447,9 +2449,16 @@ void ath10k_purge_scan(struct ath10k *ar)
 
 void ath10k_force_queue_restart(struct ath10k *ar) {
 	/* Clear error counters. */
-	ath10k_purge_scan(ar);
-	ar->wmi_cmd_timeouts = 0;
+	ieee80211_stop_queues(ar->hw);
+
+	spin_lock_bh(&ar->data_lock);
+
 	ar->forcing_reset = true;
+	ar->wmi_cmd_timeouts = 0;
+	ath10k_purge_scan(ar);
+
+	spin_unlock_bh(&ar->data_lock);
+
 	queue_work(ar->workqueue, &ar->restart_work);
 }
 
@@ -2459,6 +2468,8 @@ void ath10k_force_queue_restart(struct ath10k *ar) {
 void ath10k_halt(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
+
+	ieee80211_stop_queues(ar->hw);
 
 	ath10k_stop_cac(ar);
 	del_timer_sync(&ar->scan.timeout);
@@ -2542,6 +2553,9 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	}
 
 	ath10k_regd_update(ar);
+
+	ieee80211_wake_queues(ar->hw);
+
 	ret = 0;
 
 exit:
@@ -3213,7 +3227,7 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
+	if (ar->scan.in_progress || ar->forcing_reset) {
 		spin_unlock_bh(&ar->data_lock);
 		ret = -EBUSY;
 		goto exit;
