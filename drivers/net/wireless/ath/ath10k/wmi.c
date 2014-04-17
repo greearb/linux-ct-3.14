@@ -631,11 +631,15 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		if (ret == -EAGAIN) {
-			/* If we fail two of these in a row, then firmware
+			/* If we fail four of these in a row, then firmware
 			 * is probably wedged.  So, restart it.
+			 * Evidently, tx-mgt frames can rot in firmware for up to 10 seconds?
 			 */
 			ar->wmi_cmd_timeouts++;
-			if ((ar->wmi_cmd_timeouts >= 2) &&
+			/* TODO-BEN:  Add some firmware hack to force mgmt flush by writing
+			 * something to memory over PCI bus?
+			 */
+			if ((ar->wmi_cmd_timeouts >= 4) &&
 			    (ar->state == ATH10K_STATE_ON) &&
 			    (!ar->forcing_reset)) {
 				ath10k_err("failed with wmi_cmd_timeout %d times, attempting hardware reset.\n",
