@@ -750,14 +750,14 @@ static int ath10k_monitor_create(struct ath10k *ar)
 		return 0;
 	}
 
-	bit = __ffs64(ar->free_vdev_map);
-	if (bit == 0 || !ar->free_vdev_map) {
+	if (!ar->free_vdev_map) {
 		ath10k_warn("no free vdev slots\n");
-		return -ENOMEM;
+		return -EBUSY;
 	}
 
-	ar->monitor_vdev_id = bit - 1;
-	ar->free_vdev_map &= ~(1LL << ar->monitor_vdev_id);
+	bit = __ffs64(ar->free_vdev_map);
+
+	ar->monitor_vdev_id = bit;
 
 	ret = ath10k_wmi_vdev_create(ar, ar->monitor_vdev_id,
 				     WMI_VDEV_TYPE_MONITOR,
@@ -765,21 +765,16 @@ static int ath10k_monitor_create(struct ath10k *ar)
 	if (ret) {
 		ath10k_warn("failed to create WMI monitor vdev %i: %d\n",
 			    ar->monitor_vdev_id, ret);
-		goto vdev_fail;
+		ar->monitor_vdev_id = -1;
+		return ret;
 	}
 
 	ath10k_dbg(ATH10K_DBG_MAC, "mac monitor vdev %d created\n",
 		   ar->monitor_vdev_id);
 
+	ar->free_vdev_map &= ~(1LL << ar->monitor_vdev_id);
 	ar->monitor_present = true;
 	return 0;
-
-vdev_fail:
-	/*
-	 * Restore the ID to the global map.
-	 */
-	ar->free_vdev_map |= (1LL << ar->monitor_vdev_id);
-	return ret;
 }
 
 static int ath10k_monitor_destroy(struct ath10k *ar)
@@ -2788,13 +2783,13 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
-	bit = __ffs64(ar->free_vdev_map);
 	if (!ar->free_vdev_map) {
-		ath10k_warn("Free vdev map is empty, no more interfaces allowed: %llu, bit: %i\n",
-			    ar->free_vdev_map, bit);
+		ath10k_warn("Free vdev map is empty, no more interfaces allowed.\n");
 		ret = -EBUSY;
 		goto err;
 	}
+
+	bit = __ffs64(ar->free_vdev_map);
 	ath10k_warn("Creating vdev id: %i  map: %llu\n",
 		    bit, ar->free_vdev_map);
 
@@ -2935,7 +2930,7 @@ err_peer_delete:
 
 err_vdev_delete:
 	ath10k_wmi_vdev_delete(ar, arvif->vdev_id);
-	ar->free_vdev_map &= ~(1LL << arvif->vdev_id);
+	ar->free_vdev_map |= (1LL << arvif->vdev_id);
 	list_del(&arvif->list);
 
 err:
