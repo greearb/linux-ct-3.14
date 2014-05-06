@@ -155,8 +155,9 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 			goto err_pull;
 		}
 		ep->tx_credits -= credits;
-		ath10k_warn("ep %d used %d credits, remaining %d dbg %d (0x%x)\n",
-			    eid, credits, ep->tx_credits, dbg, dbg);
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "ep %d used %d credits, remaining %d dbg %d (0x%x)\n",
+			   eid, credits, ep->tx_credits, dbg, dbg);
 
 		spin_unlock_bh(&htc->tx_lock);
 	}
@@ -239,8 +240,9 @@ ath10k_htc_process_credit_report(struct ath10k_htc *htc,
 		ep->tx_credits += report->credits;
 		htc->ar->no_tx_credits_at = 0;
 
-		ath10k_warn("ep %d got %d credits tot %d\n",
-			    report->eid, report->credits, ep->tx_credits);
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "ep %d got %d credits tot %d\n",
+			   report->eid, report->credits, ep->tx_credits);
 
 		if (ep->ep_ops.ep_tx_credits) {
 			spin_unlock_bh(&htc->tx_lock);
