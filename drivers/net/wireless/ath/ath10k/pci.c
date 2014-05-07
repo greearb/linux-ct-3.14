@@ -965,13 +965,13 @@ static void ath10k_pci_hif_dump_area(struct ath10k *ar)
 	ret = ath10k_pci_diag_read_mem(ar, host_addr,
 				       &reg_dump_area, sizeof(u32));
 	if (ret) {
-		ath10k_err("failed to read FW dump area address: %d  hostaddr: 0x%08X  hi-failure-state: 0x%08X\n",
-			   ret, host_addr, HI_ITEM(hi_failure_state));
+		ath10k_err("failed to read FW dump area address: %d  hostaddr: 0x%08X  hi-failure-state: 0x%08lX\n",
+			   ret, host_addr, (unsigned long)(HI_ITEM(hi_failure_state)));
 		goto do_restart;
 	}
 
-	ath10k_err("target register Dump Location: 0x%08X  hostaddr: 0x%08X  hi-item-failure-state: 0x%08X\n",
-		   reg_dump_area, host_addr, HI_ITEM(hi_failure_state));
+	ath10k_err("target register Dump Location: 0x%08X  hostaddr: 0x%08X  hi-item-failure-state: 0x%08lX\n",
+		   reg_dump_area, host_addr, (unsigned long)(HI_ITEM(hi_failure_state)));
 
 	ret = ath10k_pci_diag_read_mem(ar, reg_dump_area,
 				       &reg_dump_values[0],
