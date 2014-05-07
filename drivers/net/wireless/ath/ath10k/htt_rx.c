@@ -1122,14 +1122,21 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	    status != HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR &&
 	    status != HTT_RX_IND_MPDU_STATUS_ERR_INV_PEER &&
 	    !htt->ar->monitor_enabled) {
+
 		if (status == HTT_RX_IND_MPDU_STATUS_ERR_DUP) {
 			/* Saw this during some attempts at
 			 * having multiple stations connected
 			 * to same AP.  The CT firmware should
-			 * fix this.
+			 * fix this (Actually, still get a few
+			 * even with CT firmware, so pass them
+			 * up if we are using no-hw-crypt,
+			 * which typically indicates we are using
+			 * multiple vifs.. --Ben)
 			 */
-			ath10k_dbg(ATH10K_DBG_HTT,
-				   "htt rx: status DUP\n");
+			if (ath10k_modparam_nohwcrypt)
+				goto continue_on;
+			if (net_ratelimit())
+				ath10k_warn("htt rx: status DUP\n");
 		} else if (status == HTT_RX_IND_MPDU_STATUS_ERR_FCS) {
 			/* This is seen when using sw-rx-crypt
 			 * (CT firmware only, other firmware
@@ -1139,12 +1146,12 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 			 */
 			if (ath10k_modparam_nohwcrypt)
 				goto continue_on;
-			ath10k_dbg(ATH10K_DBG_HTT,
-				   "htt rx:  status ERR_FCS\n");
+			if (net_ratelimit())
+				ath10k_warn("htt rx:  status ERR_FCS\n");
 		} else {
-			ath10k_dbg(ATH10K_DBG_HTT,
-				   "htt rx ignoring frame w/ status %d\n",
-				   status);
+			if (net_ratelimit())
+				ath10k_warn("htt rx ignoring frame w/ status %d\n",
+					    status);
 		}
 		return false;
 	}
