@@ -472,6 +472,12 @@ struct ath10k {
 	u32 dfs_block_radar_events;
 	int install_key_rv; /* Store error code from key-install */
 
+	/* Protected by conf-mutex */
+	unsigned char supp_tx_chainmask;
+	unsigned char supp_rx_chainmask;
+	unsigned char cfg_tx_chainmask;
+	unsigned char cfg_rx_chainmask;
+
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 

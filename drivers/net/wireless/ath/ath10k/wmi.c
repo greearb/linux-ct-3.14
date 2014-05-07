@@ -2601,6 +2601,8 @@ static int ath10k_wmi_main_cmd_init(struct ath10k *ar)
 	config.ast_skid_limit = __cpu_to_le32(TARGET_AST_SKID_LIMIT);
 	config.tx_chain_mask = __cpu_to_le32(TARGET_TX_CHAIN_MASK);
 	config.rx_chain_mask = __cpu_to_le32(TARGET_RX_CHAIN_MASK);
+	ar->supp_tx_chainmask = TARGET_TX_CHAIN_MASK;
+	ar->supp_rx_chainmask = TARGET_RX_CHAIN_MASK;
 	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_RX_TIMEOUT_LO_PRI);
@@ -2721,6 +2723,9 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
 	config.tx_chain_mask = __cpu_to_le32(TARGET_10X_TX_CHAIN_MASK);
 	config.rx_chain_mask = __cpu_to_le32(TARGET_10X_RX_CHAIN_MASK);
+	/* TODO:  Have to deal with 2x2 chips if/when the come out. */
+	ar->supp_tx_chainmask = TARGET_10X_TX_CHAIN_MASK;
+	ar->supp_rx_chainmask = TARGET_10X_RX_CHAIN_MASK;
 	config.rx_timeout_pri_vo = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_vi = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
 	config.rx_timeout_pri_be = __cpu_to_le32(TARGET_10X_RX_TIMEOUT_LO_PRI);
