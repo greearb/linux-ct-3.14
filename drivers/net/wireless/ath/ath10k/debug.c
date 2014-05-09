@@ -1117,6 +1117,7 @@ void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 }
 EXPORT_SYMBOL(ath10k_dbg_dump);
 
+#endif /* CONFIG_ATH10K_DEBUG */
 
 void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len, const char* lvl)
 {
@@ -1140,5 +1141,3 @@ void ath10k_dbg_print_fw_dbg_buffer(u8 *buffer, int len, const char* lvl)
 	printk("ATH10K_END\n");
 }
 EXPORT_SYMBOL(ath10k_dbg_print_fw_dbg_buffer);
-
-#endif /* CONFIG_ATH10K_DEBUG */
