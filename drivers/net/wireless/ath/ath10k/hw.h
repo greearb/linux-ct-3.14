@@ -120,17 +120,17 @@ enum ath10k_mcast2ucast_mode {
 #define TARGET_10X_NUM_PEERS_MAX		128
 
 /* Over-rides for Candela Technologies firmware */
-#define TARGET_10X_NUM_VDEVS_CT			32
-#define TARGET_10X_NUM_PEERS_CT			(32 + (TARGET_10X_NUM_VDEVS_CT))
+#define TARGET_10X_NUM_VDEVS_CT			36
+#define TARGET_10X_NUM_PEERS_CT			(2 * TARGET_10X_NUM_VDEVS_CT)
 #define TARGET_10X_AST_SKID_LIMIT_CT		(TARGET_10X_NUM_PEERS_CT * TARGET_10X_NUM_PEER_AST)
 #define TARGET_10X_NUM_PEER_KEYS_CT             (WMI_MAX_KEY_INDEX + 1) /* 4 */
 /* These eat a fair chunk of memory on the firmware, so decrease it a bit. */
-#define TARGET_10X_NUM_MSDU_DESC_CT		(512 + 400)
+#define TARGET_10X_NUM_MSDU_DESC_CT		(512 + 300)
 
 /* Related to HTC buffers */
 #define TARGET_HTC_MAX_PENDING_TXCREDITS_RPTS   1 /* return any credit immediately */
-#define TARGET_HTC_MAX_CONTROL_BUFFERS          8 /* 8 ctrl buffers for sending info to host */
-#define TARGET_HTC_MAX_TX_CREDITS_CT            6 /* max of 6 tx-credits, CT only */
+#define TARGET_HTC_MAX_CONTROL_BUFFERS          6 /* ctrl buffers for sending info to host */
+#define TARGET_HTC_MAX_TX_CREDITS_CT            3 /* max tx-credits, CT only */
 
 #define TARGET_10X_NUM_OFFLOAD_PEERS		0
 #define TARGET_10X_NUM_OFFLOAD_REORDER_BUFS	0
