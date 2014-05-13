@@ -462,9 +462,6 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int rc;
-	int associated_station_vifs = 0;
-	int running_station_vifs = 0; /* not necessarily associated */
-	int running_other_vifs = 0; /* AP, etc */
 
 	lockdep_assert_held(&local->mtx);
 
@@ -512,60 +509,6 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 	local->scan_req = req;
 	rcu_assign_pointer(local->scan_sdata, sdata);
-
-	/*
-	  printk("start_sw_scan, can_scan_one: %i  n_channels: %i\n",
-	  local->scan_req->can_scan_one, local->scan_req->n_channels);
-	  WARN_ON(!local->scan_req->can_scan_one);
-	*/
-	if (local->scan_req->can_scan_one && local->scan_req->n_channels >= 1) {
-		struct sta_info *sta;
-		mutex_lock(&local->iflist_mtx);
-		list_for_each_entry(sdata, &local->interfaces, list) {
-			if (!ieee80211_sdata_running(sdata))
-				continue;
-
-			if (sdata->vif.type == NL80211_IFTYPE_STATION)
-				running_station_vifs++;
-			else
-				running_other_vifs++;
-		}
-		mutex_unlock(&local->iflist_mtx);
-
-		rcu_read_lock();
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			if (!ieee80211_sdata_running(sta->sdata))
-				continue;
-			if (sta->sdata->vif.type != NL80211_IFTYPE_STATION)
-				continue;
-			if (test_sta_flag(sta, WLAN_STA_ASSOC))
-				associated_station_vifs++;
-		}
-		rcu_read_unlock();
-
-		/* If one sta is associated, we don't want another to start
-		 * scanning on all channels, as that will interfere with the
-		 * one already associated.
-		 */
-		if ((running_other_vifs > 0) ||
-		    (associated_station_vifs > 1)) {
-			local->scan_req->channels[0] = local->_oper_chandef.chan;
-			local->scan_req->n_channels = 1;
-			printk(KERN_INFO "%s: start_sw_scan: running-other-vifs: %i  "
-			       "running-station-vifs: %i, associated-stations: %i"
-			       " scanning current channel: %u MHz\n",
-			       wiphy_name(local->hw.wiphy),
-			       running_other_vifs, running_station_vifs,
-			       associated_station_vifs,
-			       local->_oper_chandef.chan->center_freq);
-		} else
-			printk(KERN_INFO "%s: start_sw_scan: running-other-vifs: %i  "
-			       "running-station-vifs: %i, associated-stations: %i"
-			       " scanning all channels.\n",
-			       wiphy_name(local->hw.wiphy),
-			       running_other_vifs, running_station_vifs,
-			       associated_station_vifs);
-	}
 
 	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
