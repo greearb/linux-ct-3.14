@@ -2720,6 +2720,10 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 		config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
 		config.num_msdu_desc = __cpu_to_le32(TARGET_10X_NUM_MSDU_DESC);
 	}
+
+	/* Firmware will crash if this is not even multiple of 8 */
+	BUG_ON(config.num_msdu_desc & 0x7);
+
 	config.num_tids = __cpu_to_le32(TARGET_10X_NUM_TIDS);
 	config.tx_chain_mask = __cpu_to_le32(TARGET_10X_TX_CHAIN_MASK);
 	config.rx_chain_mask = __cpu_to_le32(TARGET_10X_RX_CHAIN_MASK);

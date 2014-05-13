@@ -125,7 +125,7 @@ enum ath10k_mcast2ucast_mode {
 #define TARGET_10X_AST_SKID_LIMIT_CT		(TARGET_10X_NUM_PEERS_CT * TARGET_10X_NUM_PEER_AST)
 #define TARGET_10X_NUM_PEER_KEYS_CT             (WMI_MAX_KEY_INDEX + 1) /* 4 */
 /* These eat a fair chunk of memory on the firmware, so decrease it a bit. */
-#define TARGET_10X_NUM_MSDU_DESC_CT		(512 + 300)
+#define TARGET_10X_NUM_MSDU_DESC_CT		(808) /* must be multiple of 8 */
 
 /* Related to HTC buffers */
 #define TARGET_HTC_MAX_PENDING_TXCREDITS_RPTS   1 /* return any credit immediately */
