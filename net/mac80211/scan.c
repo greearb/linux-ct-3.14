@@ -312,8 +312,16 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	kfree(local->hw_scan_req);
 	local->hw_scan_req = NULL;
 
-	if (local->scan_req != local->int_scan_req)
-		cfg80211_scan_done(local->scan_req, aborted);
+	if (local->scan_req != local->int_scan_req) {
+		/* Some nasty bug, maybe related to issues in ath10k causes
+		 * this to be NULL sometimes.  Check and warn instead of
+		 * BUG'ing in wiphy_to_dev.
+		 */
+		if (! WARN_ON(!local->scan_req->wiphy)) {
+			cfg80211_scan_done(local->scan_req, aborted);
+		}
+	}
+
 	local->scan_req = NULL;
 	rcu_assign_pointer(local->scan_sdata, NULL);
 
