@@ -1845,6 +1845,8 @@ static void ath10k_regd_update(struct ath10k *ar)
 
 	/* Target allows setting up per-band regdomain but ath_common provides
 	 * a combined one only */
+	ath10k_dbg(ATH10K_DBG_REGULATORY, "regd-update, regDmnEnum: %d\n",
+		   regpair->regDmnEnum);
 	ret = ath10k_wmi_pdev_set_regdomain(ar,
 					    regpair->regDmnEnum,
 					    regpair->regDmnEnum, /* 2ghz */
@@ -5064,6 +5066,8 @@ int ath10k_mac_register(struct ath10k *ar)
 	}
 
 	if (!ath_is_world_regd(&ar->ath_common.regulatory)) {
+		ath10k_dbg(ATH10K_DBG_REGULATORY, "regulatory hint, alpha2: %s\n",
+			   ar->ath_common.regulatory.alpha2);
 		ret = regulatory_hint(ar->hw->wiphy,
 				      ar->ath_common.regulatory.alpha2);
 		if (ret)
