@@ -5066,8 +5066,9 @@ int ath10k_mac_register(struct ath10k *ar)
 	}
 
 	if (!ath_is_world_regd(&ar->ath_common.regulatory)) {
-		ath10k_dbg(ATH10K_DBG_REGULATORY, "regulatory hint, alpha2: %s\n",
-			   ar->ath_common.regulatory.alpha2);
+		ath10k_dbg(ATH10K_DBG_REGULATORY, "regulatory hint, alpha2: %c%c\n",
+			   ar->ath_common.regulatory.alpha2[0],
+			   ar->ath_common.regulatory.alpha2[1]);
 		ret = regulatory_hint(ar->hw->wiphy,
 				      ar->ath_common.regulatory.alpha2);
 		if (ret)
