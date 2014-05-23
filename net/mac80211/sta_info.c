@@ -275,6 +275,7 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
+	struct ieee80211_sta_rates *rates;
 	int i;
 
 	if (sta->rate_ctrl)
@@ -285,6 +286,10 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 			kfree(sta->tx_lat[i].bins);
 		kfree(sta->tx_lat);
 	}
+
+	rates = rcu_dereference_protected(sta->sta.rates, true);
+	if (rates)
+		kfree(rates);
 
 	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
 
