@@ -788,7 +788,7 @@ static void ath10k_htt_rx_h_protected(struct ath10k_htt *htt,
 				     RX_FLAG_IV_STRIPPED |
 				     RX_FLAG_MMIC_STRIPPED);
 	} else {
-		if (!ath10k_modparam_nohwcrypt) {
+		if (!htt->ar->use_swcrypt) {
 			rx_status->flag |= (RX_FLAG_DECRYPTED |
 					    RX_FLAG_IV_STRIPPED |
 					    RX_FLAG_MMIC_STRIPPED);
@@ -1284,7 +1284,7 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			}
 
 			if ((attention & RX_ATTENTION_FLAGS_FCS_ERR) &&
-			    !ath10k_modparam_nohwcrypt)
+			    !htt->ar->use_swcrypt)
 				rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 			else
 				rx_status->flag &= ~RX_FLAG_FAILED_FCS_CRC;

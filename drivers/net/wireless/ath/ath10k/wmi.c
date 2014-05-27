@@ -2733,12 +2733,19 @@ static int ath10k_wmi_10x_cmd_init(struct ath10k *ar)
 		config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS_CT);
 		config.num_peers = __cpu_to_le32(TARGET_10X_NUM_PEERS_CT);
 		config.ast_skid_limit = __cpu_to_le32(TARGET_10X_AST_SKID_LIMIT_CT);
-		if (ath10k_modparam_nohwcrypt)
+		if (test_bit(ATH10K_FW_FEATURE_CT_RXSWCRYPT, ar->fw_features) &&
+		    ath10k_modparam_nohwcrypt) {
 			/* This will disable rx decryption in hardware, enable raw
 			 * rx mode, and native-wifi tx mode.  Requires 'CT' firmware.
 			 */
 			config.rx_decap_mode = __cpu_to_le32(ATH10K_HW_TXRX_RAW |
 							     ATH10k_USE_SW_RX_CRYPT);
+			ar->use_swcrypt = true;
+		}
+		else if (ath10k_modparam_nohwcrypt) {
+			ath10k_err("module param nohwcrypt enabled, but firmware does not support this feature.  Disabling swcrypt.\n");
+		}
+
 		config.rx_decap_mode |= __cpu_to_le32(ATH10k_USE_TXCOMPL_TXRATE);
 		config.roam_offload_max_vdev = 0; /* disable roaming */
 		config.roam_offload_max_ap_profiles = 0; /* disable roaming */
