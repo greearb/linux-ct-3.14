@@ -1800,7 +1800,7 @@ static void ath10k_wmi_event_debug_print(struct ath10k *ar,
 	/* the last byte is always reserved for the null character */
 	buf[i] = '\0';
 
-	ath10k_dbg(ATH10K_DBG_FIRMWARE, "wmi event debug print '%s'\n", buf);
+	ath10k_info("wmi event firmware message '%s'\n", buf);
 }
 
 static void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb)
