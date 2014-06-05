@@ -2364,6 +2364,7 @@ void ath10k_force_queue_restart(struct ath10k *ar) {
 
 	spin_lock_bh(&ar->data_lock);
 
+	ar->tx_flush_failed = 0;
 	ar->forcing_reset = true;
 	ar->wmi_cmd_timeouts = 0;
 	ath10k_purge_scan(ar);
@@ -3907,13 +3908,14 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 					printk("\n");
 			}
 		}
-		if ((++ar->tx_flush_failed > 1) &&
+		if ((++ar->tx_flush_failed > 2) &&
 		    (ar->state != ATH10K_STATE_RESTARTING)) {
 			/* This does not appear recoverable, attempt reset. */
 			ath10k_err("failed to flush transmit queue %d times, attempting hardware reset.\n",
 				ar->tx_flush_failed);
-			ar->tx_flush_failed = 0;
-			queue_work(ar->workqueue, &ar->restart_work);
+			mutex_unlock(&ar->conf_mutex);
+			ath10k_force_queue_restart(ar);
+			return;
 		}
 	} else {
 		ar->tx_flush_failed = 0;
