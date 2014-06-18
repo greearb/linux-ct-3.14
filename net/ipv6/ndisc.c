@@ -1057,6 +1057,19 @@ errout:
 	rtnl_set_sk_err(net, RTNLGRP_ND_USEROPT, err);
 }
 
+static bool ipv6_accept_ra_local(struct inet6_dev *in6_dev, struct sk_buf *skb)
+{
+	/* Do not accept RA with source-addr found on local machine unless
+	 * accept_ra_from_local is set to true.
+	 */
+	if (!in6_dev->cnf.accept_ra_from_local &&
+	    ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
+			  NULL, 0))
+		return false;
+	return true;
+}
+
+
 static void ndisc_router_discovery(struct sk_buff *skb)
 {
 	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
@@ -1151,10 +1164,9 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		goto skip_defrtr;
 	}
 
-	if (ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+	if (!ipv6_accept_ra_local(in6_dev, skb)) {
 		ND_PRINTK(2, info,
-			  "RA: %s, chk_addr failed for dev: %s\n",
+			  "RA: %s, accept_ra_local failed for dev: %s\n",
 			  __func__, skb->dev->name);
 		goto skip_defrtr;
 	}
@@ -1293,10 +1305,9 @@ skip_linkparms:
 	}
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
-	if (ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+	if (!ipv6_accept_ra_local(in6_dev, skb)) {
 		ND_PRINTK(2, info,
-			  "RA: %s, chk-addr (route info) is false for dev: %s\n",
+			  "RA: %s, accept_ra_local (route info) failed for dev: %s\n",
 			  __func__, skb->dev->name);
 		goto skip_routeinfo;
 	}
